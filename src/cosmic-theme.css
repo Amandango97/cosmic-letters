@@ -369,6 +369,15 @@ body {
 }
 .compose-body-ta::placeholder { color: var(--text-muted); }
 
+/* -- Images --*/
+
+.letter-body img {
+  max-width: 100%;
+  border-radius: var(--radius-md);
+  margin: 1rem 0;
+  display: block;
+}
+
 /* ── Login ── */
 .login-wrap {
   min-height: 100vh; display: flex; align-items: center; justify-content: center;

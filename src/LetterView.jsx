@@ -7,6 +7,7 @@ import { unified } from 'unified'
 import remarkParse from 'remark-parse'
 import remarkRehype from 'remark-rehype'
 import rehypeStringify from 'rehype-stringify'
+import rehypeRaw from 'rehype-raw'
 
 export default function LetterView({ letter, comments, currentUser, isAuthor, onBack, onSeal, onUnseal, onAddComment, onDelete }) {
   const [spans, setSpans] = useState(buildSpansFromComments(comments, letter.body))
@@ -44,7 +45,8 @@ export default function LetterView({ letter, comments, currentUser, isAuthor, on
   const md = letter.body || ''
   const file = unified()
     .use(remarkParse)
-    .use(remarkRehype)
+    .use(remarkRehype, { allowDangerousHtml: true })
+    .use(rehypeRaw)
     .use(rehypeStringify)
     .processSync(md)
   let html = String(file)
