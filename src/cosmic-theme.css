@@ -99,7 +99,7 @@ body {
   background: var(--surface);
   border: 0.5px solid var(--border);
   border-radius: var(--radius-lg);
-    padding: 3rem 4rem;
+  padding: 3rem 4rem;
 }
 
 /* ── Buttons ── */
@@ -365,7 +365,11 @@ body {
 .compose-body-ta {
   width: 100%; background: transparent; border: none;
   color: var(--text-primary);
+  font-family: var(--font-sans);
   font-size: var(--text-body); line-height: 1.9; resize: none; outline: none; min-height: 160px;
+  resize: none;
+  overflow: hidden;
+  min-height: 680px;
 }
 .compose-body-ta::placeholder { color: var(--text-muted); }
 
@@ -473,12 +477,18 @@ body {
   /* Compose textarea */
   .compose-body-ta {
     min-height: 200px;
-    font-size: 16px; /* prevents iOS zoom on focus */
+    font-size: var(--text-body);
+    font-family: var(--font-sans);
   }
 
   .compose-title-inp {
-    var(--text-body)
+    font-size: var(--text-body);
+    font-family: var(--font-sans);
   }
+
+  .card .compose-body-ta {
+  font-family: var(--font-sans);
+}
 
   /* Login card full-width on mobile */
   .login-card {

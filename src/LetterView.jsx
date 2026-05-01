@@ -8,19 +8,32 @@ import remarkParse from 'remark-parse'
 import remarkRehype from 'remark-rehype'
 import rehypeStringify from 'rehype-stringify'
 import rehypeRaw from 'rehype-raw'
+import { supabase } from './supabase'
 
-export default function LetterView({ letter, comments, currentUser, isAuthor, onBack, onSeal, onUnseal, onAddComment, onDelete }) {
+export default function LetterView({ letter, comments, currentUser, isAuthor, onBack, onSeal, onUnseal, onAddComment, onDelete, onEdit }) {
   const [spans, setSpans] = useState(buildSpansFromComments(comments, letter.body))
   const [pendingSpan, setPending]   = useState(null)  // { id, text, top }
   const [replyText, setReplyText]   = useState({})    // spanId -> string
   const [newCmtText, setNewCmtText] = useState('')
   const bodyRef = useRef(null)
   const tipRef  = useRef(null)
+  const [editing, setEditing] = useState(false)
+  const [editTitle, setEditTitle] = useState(letter.title)
+  const [editBody, setEditBody]   = useState(letter.body)
+  const [dragging, setDragging] = useState(false)
+const editTaRef = useRef(null)
 
   // Re-derive spans when comments change
   useEffect(() => {
     setSpans(buildSpansFromComments(comments, letter.body))
   }, [comments, letter.body])
+
+  useEffect(() => {
+  if (editing && editTaRef.current) {
+    editTaRef.current.style.height = 'auto'
+    editTaRef.current.style.height = editTaRef.current.scrollHeight + 'px'
+  }
+}, [editing])
 
   // ── Sealed view ──────────────────────────────────────────────
   if (letter.status === 'locked' && !isAuthor) {
@@ -110,6 +123,13 @@ export default function LetterView({ letter, comments, currentUser, isAuthor, on
   return html
 }
 
+  // -- Edit handler -----
+
+  async function saveEdit() {
+    await onEdit(editTitle.trim() || '(untitled)', editBody.trim())
+    setEditing(false)
+  }
+
   // ── Selection handler ────────────────────────────────────────
   function handleMouseUp() {
     const sel = window.getSelection()
@@ -177,6 +197,11 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
     }
   }
 
+  function autoResize(e) {
+  e.target.style.height = 'auto'
+  e.target.style.height = e.target.scrollHeight + 'px'
+}
+
   // --- Delete handler ---
 
   function deleteLetter() {
@@ -206,29 +231,84 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
               {isAuthor && letter.status === 'open'   && <button className="btn btn-sealed" style={{ fontSize: 11, padding: '3px 10px' }} onClick={onSeal}>seal</button>}
               {isAuthor && letter.status === 'locked' && <button className="btn btn-open"   style={{ fontSize: 11, padding: '3px 10px' }} onClick={onUnseal}>unseal</button>}
               {isAuthor && <button className="btn btn-ghost" style={{ fontSize: 11, padding: '3px 10px', color: '#f87171' }} onClick={deleteLetter}>delete</button>}
+              {isAuthor && letter.status === 'open' && !editing && (
+                <button className="btn btn-ghost" style={{ fontSize: 11, padding: '3px 10px' }} onClick={() => { setEditing(true); setEditTitle(letter.title); setEditBody(letter.body) }}>edit</button>
+              )}
+              {editing && (
+                <>
+                  <button className="btn btn-accent" style={{ fontSize: 11, padding: '3px 10px' }} onClick={saveEdit}>save</button>
+                  <button className="btn btn-ghost"  style={{ fontSize: 11, padding: '3px 10px' }} onClick={() => setEditing(false)}>cancel</button>
+                </>
+              )}
             </div>
             </div>
 
             {/* Body with span click handlers */}
             <div style={{ position: 'relative', overflow: 'visible' }}>
-              <div
-                ref={bodyRef}
-                className="letter-body"
-                onMouseUp={handleMouseUp}
-                dangerouslySetInnerHTML={{ __html: buildBody() }}
-                onClick={e => {
-                  const id = e.target.dataset?.span
-                  if (id) focusSpan(id)
-                }}
-              />
-              <div ref={tipRef} className="sel-tip">
-                <button onClick={startComment}>+ comment</button>
-              </div>
+              {editing ? (
+                <div
+                  onDragOver={e => { e.preventDefault(); setDragging(true) }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={async e => {
+                    e.preventDefault()
+                    setDragging(false)
+                    const file = e.dataTransfer.files[0]
+                    if (!file?.type.startsWith('image/')) return
+                    const ext = file.name.split('.').pop()
+                    const path = `${currentUser.id}/${Date.now()}.${ext}`
+                    const { error } = await supabase.storage.from('letter-images').upload(path, file)
+                    if (error) return
+                    const { data } = supabase.storage.from('letter-images').getPublicUrl(path)
+                    const ta = editTaRef.current
+                    const start = ta.selectionStart
+                    const end = ta.selectionEnd
+                    const insertion = `\n![](${data.publicUrl})\n`
+                    setEditBody(b => b.slice(0, start) + insertion + b.slice(end))
+                  }}
+                  style={{
+                    borderRadius: 'var(--radius-sm)',
+                    outline: dragging ? '2px dashed var(--accent-a)' : '2px solid transparent',
+                    transition: 'outline 0.15s',
+                  }}
+                >
+                  <input
+                    className="compose-title-inp"
+                    value={editTitle}
+                    onChange={e => setEditTitle(e.target.value)}
+                    style={{ marginBottom: 14 }}
+                  />
+                  <textarea
+                    ref={editTaRef}
+                    className="compose-body-ta"
+                    value={editBody}
+                    onChange={e => setEditBody(e.target.value)}
+                    style={{ minHeight: 300 }}
+                    onInput={autoResize}
+                  />
+                  {dragging && <p style={{ fontSize: 11, color: 'var(--accent-a)', marginTop: 6 }}>drop to insert image</p>}
+                </div>
+              ) : (
+                <>
+                  <div
+                    ref={bodyRef}
+                    className="letter-body"
+                    onMouseUp={handleMouseUp}
+                    dangerouslySetInnerHTML={{ __html: buildBody() }}
+                    onClick={e => {
+                      const id = e.target.dataset?.span
+                      if (id) focusSpan(id)
+                    }}
+                  />
+                  <div ref={tipRef} className="sel-tip">
+                    <button onClick={startComment}>+ comment</button>
+                  </div>
+                </>
+              )}
             </div>
 
           </div>
           <p style={{ fontSize: 10, color: 'var(--text-faint)', textAlign: 'center', marginTop: 6 }}>
-            select text to leave a comment
+            {editing ? '' : 'select text to leave a comment'}
           </p>
         </div>
 
@@ -256,7 +336,7 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
                 <input
                   className="cmt-input"
                   style={{ flex: 1 }}
-                  placeholder={`reply as ${currentUser.label}…`}
+                  placeholder={`Reply`}
                   value={replyText[sp.id] || ''}
                   onChange={e => setReplyText(r => ({ ...r, [sp.id]: e.target.value }))}
                   onKeyDown={e => e.key === 'Enter' && saveReply(sp.id, sp.text)}

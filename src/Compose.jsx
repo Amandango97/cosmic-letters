@@ -39,6 +39,11 @@ export default function Compose({ currentUser, partnerName, onSend, onCancel }) 
     if (file) { e.preventDefault(); uploadImage(file) }
   }
 
+  function autoResize(e) {
+    e.target.style.height = 'auto'
+    e.target.style.height = e.target.scrollHeight + 'px'
+  }
+
   async function send(status) {
     if (!body.trim()) return
     setSaving(true)
@@ -56,7 +61,7 @@ export default function Compose({ currentUser, partnerName, onSend, onCancel }) 
         </p>
         <input
           className="compose-title-inp"
-          placeholder="subject…"
+          placeholder="Subject"
           value={title}
           onChange={e => setTitle(e.target.value)}
         />
@@ -73,10 +78,11 @@ export default function Compose({ currentUser, partnerName, onSend, onCancel }) 
           <textarea
             ref={taRef}
             className="compose-body-ta"
-            placeholder={`Dear ${partnerName},\n\n…`}
+            placeholder={`Dear ${partnerName},`}
             value={body}
             onChange={e => setBody(e.target.value)}
             onPaste={handlePaste}
+            onInput={autoResize}
           />
         </div>
         {uploading && <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>uploading image…</p>}

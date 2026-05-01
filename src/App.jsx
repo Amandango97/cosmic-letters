@@ -133,6 +133,12 @@ export default function App() {
     setActiveLetter(null)
   }
 
+  async function editLetter(title, body) {
+    await supabase.from('letters').update({ title, body }).eq('id', activeLetter.id)
+    setActiveLetter(l => ({ ...l, title, body }))
+    fetchLetters()
+  }
+
   async function addComment({ spanText, body }) {
     const { error } = await supabase.from('comments').insert({
       letter_id:    activeLetter.id,
@@ -202,6 +208,7 @@ export default function App() {
             onUnseal={unsealLetter}
             onAddComment={addComment}
             onDelete={deleteLetter}
+            onEdit={editLetter}
           />
         )}
 
