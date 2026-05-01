@@ -30,8 +30,8 @@
   --open-bg:      rgba(100, 180, 120, 0.10);
   --open-border:  rgba(100, 200, 120, 0.28);
 
-  --highlight-bg: rgba(167, 139, 250, 0.20);
-  --highlight-active: rgba(167, 139, 250, 0.38);
+  --highlight-bg:     rgba(196, 135, 74, 0.25);
+  --highlight-active: rgba(196, 135, 74, 0.55);
 
   --font-serif:   Georgia, 'Times New Roman', serif;
   --font-sans:    system-ui, -apple-system, sans-serif;
@@ -259,8 +259,14 @@ body {
 }
 
 /* ── Inline comment highlights ── */
-.hl { background: var(--highlight-bg); border-radius: 2px; cursor: pointer; }
+.hl { background: var(--highlight-bg);   border-bottom: 1.5px solid rgba(196, 135, 74, 0.7); border-radius: 2px; cursor: pointer; }
 .hl.active { background: var(--highlight-active); }
+
+.mg-active .cmt-bubble {
+  border-color: rgba(196, 135, 74, 0.6);
+  background: rgba(196, 135, 74, 0.08);
+  transition: background 0.2s, border-color 0.2s;
+}
 
 .sel-tip {
   display: none;

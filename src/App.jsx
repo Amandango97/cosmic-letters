@@ -87,16 +87,16 @@ export default function App() {
 
   // ── Actions ──────────────────────────────────────────────────
   async function openLetter(letter) {
-    setActiveLetter(letter)
-    setScreen('letter')
-    await fetchComments(letter.id)
+  setActiveLetter(letter)
+  setComments([])          // clear immediately before fetching
+  setScreen('letter')
+  await fetchComments(letter.id)
 
-    // Mark as read if recipient and unread
-    if (letter.to_user === session.user.id && !letter.read_at) {
-      await supabase.from('letters').update({ read_at: new Date().toISOString() }).eq('id', letter.id)
-      fetchLetters()
-    }
+  if (letter.to_user === session.user.id && !letter.read_at) {
+    await supabase.from('letters').update({ read_at: new Date().toISOString() }).eq('id', letter.id)
+    fetchLetters()
   }
+}
 
   async function sendLetter(title, body, status) {
     const partnerId = getPartnerId()

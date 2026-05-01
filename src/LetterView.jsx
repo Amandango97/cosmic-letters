@@ -4,7 +4,7 @@
 import { useState, useRef, useEffect } from 'react'
 
 export default function LetterView({ letter, comments, currentUser, isAuthor, onBack, onSeal, onUnseal, onAddComment, onDelete }) {
-  const [spans, setSpans]           = useState(buildSpansFromComments(comments))
+  const [spans, setSpans] = useState(buildSpansFromComments(comments, letter.body))
   const [pendingSpan, setPending]   = useState(null)  // { id, text, top }
   const [replyText, setReplyText]   = useState({})    // spanId -> string
   const [newCmtText, setNewCmtText] = useState('')
@@ -13,8 +13,8 @@ export default function LetterView({ letter, comments, currentUser, isAuthor, on
 
   // Re-derive spans when comments change
   useEffect(() => {
-    setSpans(buildSpansFromComments(comments))
-  }, [comments])
+    setSpans(buildSpansFromComments(comments, letter.body))
+  }, [comments, letter.body])
 
   // ── Sealed view ──────────────────────────────────────────────
   if (letter.status === 'locked' && !isAuthor) {
@@ -41,7 +41,7 @@ export default function LetterView({ letter, comments, currentUser, isAuthor, on
       const esc = sp.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
       html = html.replace(
         new RegExp(esc),
-        `<span class="hl ${sp.id === pendingSpan?.id || sp.active ? 'active' : ''}" data-span="${sp.id}">${sp.text}</span>`
+        `<span class="hl" id="hl-${sp.id}" data-span="${sp.id}">${sp.text}</span>`
       )
     })
     return html.split('\n').map(l => l === '' ? '<br>' : l).join('\n')
@@ -106,7 +106,12 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
   function focusSpan(spanId) {
     document.querySelectorAll('.hl').forEach(e => e.classList.remove('active'))
     document.getElementById('hl-' + spanId)?.classList.add('active')
-    document.getElementById('mg-' + spanId)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    const mgEl = document.getElementById('mg-' + spanId)
+    if (mgEl) {
+      mgEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      mgEl.classList.add('mg-active')
+      setTimeout(() => mgEl.classList.remove('mg-active'), 1500)
+    }
   }
 
   // --- Delete handler ---
@@ -132,7 +137,7 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
                   {letter.from_label}
                 </span>
                 <span style={{ marginLeft: 10 }}>{letter.title}</span>
-              </span>
+              </span> 
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span>{formatDate(letter.created_at)}</span>
               {isAuthor && letter.status === 'open'   && <button className="btn btn-sealed" style={{ fontSize: 11, padding: '3px 10px' }} onClick={onSeal}>seal</button>}
@@ -175,8 +180,11 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
           {spans.map(sp => (
             <div key={sp.id} id={'mg-' + sp.id} style={{ marginBottom: 10 }}>
               {sp.comments.map((c, i) => (
-                <div key={i} className="cmt-bubble">
-                  <div className={`who who-${c.author_label?.toLowerCase()}`}>{c.author_label}</div>
+                <div key={i} className="cmt-bubble" style={{ cursor: 'pointer' }} onClick={() => focusSpan(sp.id)}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <div className={`who who-${c.author_label?.toLowerCase()}`}>{c.author_label}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-faint)' }}>{formatDate(c.created_at)}</div>
+                  </div>
                   <div className="body">{c.body}</div>
                 </div>
               ))}
@@ -223,22 +231,30 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
 
 // ── Helpers ──────────────────────────────────────────────────────
 
-function buildSpansFromComments(comments) {
-  // Group flat comments by span_text to recreate span groups
+function buildSpansFromComments(comments, letterBody) {
   const map = {}
   ;(comments || []).forEach(c => {
     const key = c.span_text
     if (!map[key]) map[key] = { id: 'span-' + btoa(key).slice(0, 8), text: key, comments: [] }
     map[key].comments.push(c)
   })
-  return Object.values(map)
+  const spans = Object.values(map)
+  if (letterBody) {
+    spans.sort((a, b) => letterBody.indexOf(a.text) - letterBody.indexOf(b.text))
+  }
+  return spans
 }
 
 function formatDate(iso) {
   if (!iso) return ''
   const d = new Date(iso)
   const now = new Date()
-  if (now - d < 86400000 && d.getDate() === now.getDate()) return 'today'
-  if (now - d < 172800000) return 'yesterday'
+  const diff = now - d
+  if (diff < 60000) return 'just now'
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
+  if (diff < 86400000 && d.getDate() === now.getDate()) {
+    return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  }
+  if (diff < 172800000) return 'yesterday'
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
