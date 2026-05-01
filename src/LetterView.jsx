@@ -2,6 +2,11 @@
 // Receives: letter, comments[], currentUser, isAuthor, onBack, onSeal, onUnseal, onAddComment
 
 import { useState, useRef, useEffect } from 'react'
+import ReactMarkdown from 'react-markdown'
+import { unified } from 'unified'
+import remarkParse from 'remark-parse'
+import remarkRehype from 'remark-rehype'
+import rehypeStringify from 'rehype-stringify'
 
 export default function LetterView({ letter, comments, currentUser, isAuthor, onBack, onSeal, onUnseal, onAddComment, onDelete }) {
   const [spans, setSpans] = useState(buildSpansFromComments(comments, letter.body))
@@ -36,16 +41,72 @@ export default function LetterView({ letter, comments, currentUser, isAuthor, on
 
   // ── Build annotated body HTML ────────────────────────────────
   function buildBody() {
-    let html = letter.body || ''
-    spans.forEach(sp => {
-      const esc = sp.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      html = html.replace(
-        new RegExp(esc),
-        `<span class="hl" id="hl-${sp.id}" data-span="${sp.id}">${sp.text}</span>`
-      )
-    })
-    return html.split('\n').map(l => l === '' ? '<br>' : l).join('\n')
-  }
+  const md = letter.body || ''
+  const file = unified()
+    .use(remarkParse)
+    .use(remarkRehype)
+    .use(rehypeStringify)
+    .processSync(md)
+  let html = String(file)
+
+  // Sort spans by their position in the original markdown (longest first to avoid partial overlaps)
+  const sorted = [...spans].sort((a, b) => {
+    const posA = md.indexOf(a.text)
+    const posB = md.indexOf(b.text)
+    return posA - posB
+  })
+
+  sorted.forEach(sp => {
+    // Strip tags from current html to find plain-text position
+    const plain = html.replace(/<[^>]+>/g, '')
+    const idx = plain.indexOf(sp.text)
+    if (idx === -1) return
+
+    // Walk the html char by char, counting only non-tag chars
+    let plainCount = 0
+    let startPos = -1
+    let endPos = -1
+    let inTag = false
+
+    for (let i = 0; i < html.length; i++) {
+      if (html[i] === '<') { inTag = true; continue }
+      if (html[i] === '>') { inTag = false; continue }
+      if (inTag) continue
+
+      if (plainCount === idx) startPos = i
+      if (plainCount === idx + sp.text.length) { endPos = i; break }
+      plainCount++
+    }
+
+    if (startPos === -1 || endPos === -1) return
+
+    // Find the real html positions accounting for tags we skipped
+    // Re-walk to get actual string indices
+    let pCount = 0
+    let htmlStart = -1
+    let htmlEnd = -1
+    let inT = false
+
+    for (let i = 0; i < html.length; i++) {
+      if (html[i] === '<') { inT = true }
+      if (html[i] === '>') { inT = false; continue }
+      if (inT) continue
+
+      if (pCount === idx) htmlStart = i
+      if (pCount === idx + sp.text.length) { htmlEnd = i; break }
+      pCount++
+    }
+
+    if (htmlStart === -1 || htmlEnd === -1) return
+
+    const before = html.slice(0, htmlStart)
+    const middle = html.slice(htmlStart, htmlEnd)
+    const after  = html.slice(htmlEnd)
+    html = `${before}<span class="hl" id="hl-${sp.id}" data-span="${sp.id}">${middle}</span>${after}`
+  })
+
+  return html
+}
 
   // ── Selection handler ────────────────────────────────────────
   function handleMouseUp() {
