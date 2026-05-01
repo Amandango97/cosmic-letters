@@ -3,7 +3,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 
-export default function LetterView({ letter, comments, currentUser, isAuthor, onBack, onSeal, onUnseal, onAddComment }) {
+export default function LetterView({ letter, comments, currentUser, isAuthor, onBack, onSeal, onUnseal, onAddComment, onDelete }) {
   const [spans, setSpans]           = useState(buildSpansFromComments(comments))
   const [pendingSpan, setPending]   = useState(null)  // { id, text, top }
   const [replyText, setReplyText]   = useState({})    // spanId -> string
@@ -109,6 +109,13 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
     document.getElementById('mg-' + spanId)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }
 
+  // --- Delete handler ---
+
+  function deleteLetter() {
+    if (!window.confirm('Delete this letter? This can\'t be undone.')) return
+    onDelete()
+  }
+
   // ── Render ───────────────────────────────────────────────────
   return (
     <div>
@@ -121,16 +128,17 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
           <div className="card">
             <div className="letter-meta">
               <span>
-                <span style={{ color: letter.from_label === 'A' ? 'var(--accent-a)' : 'var(--accent-b)', textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.12em' }}>
+                <span style={{ color: letter.from_label === 'Amanda' ? 'var(--accent-a)' : 'var(--accent-b)', textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.12em' }}>
                   {letter.from_label}
                 </span>
                 <span style={{ marginLeft: 10 }}>{letter.title}</span>
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span>{formatDate(letter.created_at)}</span>
-                {isAuthor && letter.status === 'open'   && <button className="btn btn-sealed" style={{ fontSize: 11, padding: '3px 10px' }} onClick={onSeal}>seal</button>}
-                {isAuthor && letter.status === 'locked' && <button className="btn btn-open"   style={{ fontSize: 11, padding: '3px 10px' }} onClick={onUnseal}>unseal</button>}
-              </div>
+              <span>{formatDate(letter.created_at)}</span>
+              {isAuthor && letter.status === 'open'   && <button className="btn btn-sealed" style={{ fontSize: 11, padding: '3px 10px' }} onClick={onSeal}>seal</button>}
+              {isAuthor && letter.status === 'locked' && <button className="btn btn-open"   style={{ fontSize: 11, padding: '3px 10px' }} onClick={onUnseal}>unseal</button>}
+              {isAuthor && <button className="btn btn-ghost" style={{ fontSize: 11, padding: '3px 10px', color: '#f87171' }} onClick={deleteLetter}>delete</button>}
+            </div>
             </div>
 
             {/* Body with span click handlers */}
@@ -150,10 +158,6 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
               </div>
             </div>
 
-            {/* Selection tooltip */}
-            <div ref={tipRef} className="sel-tip">
-              <button onClick={startComment}>+ comment</button>
-            </div>
           </div>
           <p style={{ fontSize: 10, color: 'var(--text-faint)', textAlign: 'center', marginTop: 6 }}>
             select text to leave a comment

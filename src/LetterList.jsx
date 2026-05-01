@@ -56,7 +56,7 @@ export default function LetterList({ letters, currentUser, partnerName, onOpen, 
 
 function Row({ letter: l, onOpen }) {
   const sealed = l.status === 'locked'
-  const orbClass = sealed ? 'orb-sealed' : (l.from_label === 'A' ? 'orb-a' : 'orb-b')
+  const orbClass = sealed ? 'orb-sealed' : (l.from_label === 'Amanda' ? 'orb-a' : 'orb-b')
   const totalComments = l.comment_count ?? 0
 
   return (

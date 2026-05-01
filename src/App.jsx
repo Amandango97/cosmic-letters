@@ -14,9 +14,10 @@ import './cosmic-theme.css'
 // Set these to the Supabase user IDs of person A and person B.
 // After creating accounts in Supabase, paste the UUIDs here.
 // e.g. 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx': 'A'
+
 const USER_LABELS = {
-  [import.meta.env.VITE_USER_A_ID]: 'A',
-  [import.meta.env.VITE_USER_B_ID]: 'B',
+  [import.meta.env.VITE_USER_A_ID]: 'Amanda',
+  [import.meta.env.VITE_USER_B_ID]: 'River',
 }
 
 export default function App() {
@@ -124,16 +125,24 @@ export default function App() {
     fetchLetters()
   }
 
+  async function deleteLetter() {
+    await supabase.from('comments').delete().eq('letter_id', activeLetter.id)
+    await supabase.from('letters').delete().eq('id', activeLetter.id)
+    fetchLetters()
+    setScreen('list')
+    setActiveLetter(null)
+  }
+
   async function addComment({ spanText, body }) {
     const { error } = await supabase.from('comments').insert({
-      letter_id:   activeLetter.id,
-      author_id:   session.user.id,
+      letter_id:    activeLetter.id,
+      author_id:    session.user.id,
       author_label: USER_LABELS[session.user.id],
-      span_text:   spanText,
+      span_text:    spanText,
       body,
     })
     if (error) { console.error(error); return }
-    fetchComments(activeLetter.id)
+    await fetchComments(activeLetter.id)  // wait for this before moving on
     fetchLetters()
   }
 
@@ -192,6 +201,7 @@ export default function App() {
             onSeal={sealLetter}
             onUnseal={unsealLetter}
             onAddComment={addComment}
+            onDelete={deleteLetter}
           />
         )}
 
