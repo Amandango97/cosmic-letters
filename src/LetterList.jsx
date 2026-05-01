@@ -82,9 +82,9 @@ function formatDate(iso) {
   const d = new Date(iso)
   const now = new Date()
   const diff = now - d
-  if (diff < 86400000 && d.getDate() === now.getDate()) return 'today'
-  if (diff < 172800000) return 'yesterday'
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+  if (diff < 86400000 && d.getDate() === now.getDate()) return 'today ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  if (diff < 172800000) return 'yesterday ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 }
 
 import { useState } from 'react'

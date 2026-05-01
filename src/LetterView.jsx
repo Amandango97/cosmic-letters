@@ -126,7 +126,7 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
     <div>
       <button className="btn btn-ghost" onClick={onBack} style={{ marginBottom: '1.1rem' }}>← back</button>
 
-      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', gap: 32, alignItems: 'flex-start' }} className="letter-view-layout">
 
         {/* Letter paper */}
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -171,6 +171,7 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
 
         {/* Margin */}
         <div className="margin-col">
+          <span className="margin-col-label">comments</span>
           {spans.length === 0 && !pendingSpan && (
             <p style={{ fontSize: 12, color: 'var(--text-faint)', fontStyle: 'italic', textAlign: 'center', paddingTop: '1rem' }}>
               no comments yet
@@ -191,7 +192,7 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
               <div style={{ display: 'flex', gap: 5, marginTop: 4 }}>
                 <input
                   className="cmt-input"
-                  style={{ flex: 1, fontSize: 11 }}
+                  style={{ flex: 1 }}
                   placeholder={`reply as ${currentUser.label}…`}
                   value={replyText[sp.id] || ''}
                   onChange={e => setReplyText(r => ({ ...r, [sp.id]: e.target.value }))}
