@@ -235,7 +235,7 @@ function buildSpansFromComments(comments, letterBody) {
   const map = {}
   ;(comments || []).forEach(c => {
     const key = c.span_text
-    if (!map[key]) map[key] = { id: 'span-' + btoa(key).slice(0, 8), text: key, comments: [] }
+    if (!map[key]) map[key] = { id: 'span-' + Math.abs(key.split('').reduce((a, c) => (a << 5) - a + c.charCodeAt(0), 0)).toString(36), text: key, comments: [] }
     map[key].comments.push(c)
   })
   const spans = Object.values(map)
