@@ -99,10 +99,9 @@ export default function App() {
   }
 
   async function sendLetter(title, body, status) {
-    const partnerId = getPartnerId()
     const { error } = await supabase.from('letters').insert({
       from_user:  session.user.id,
-      to_user:    partnerId,
+      to_user:    status === 'draft' ? session.user.id : getPartnerId(),
       from_label: USER_LABELS[session.user.id],
       title,
       body,
@@ -149,6 +148,27 @@ export default function App() {
     })
     if (error) { console.error(error); return }
     await fetchComments(activeLetter.id)  // wait for this before moving on
+    fetchLetters()
+  }
+
+  async function deleteComment(commentId) {
+    await supabase.from('comments').delete().eq('id', commentId)
+    await fetchComments(activeLetter.id)
+    fetchLetters()
+    }
+ 
+  async function editComment(commentId, body) {
+    await supabase.from('comments').update({ body }).eq('id', commentId)
+    await fetchComments(activeLetter.id)
+    fetchLetters()
+    }
+
+  async function sendDraft() {
+    await supabase.from('letters').update({ 
+      status: 'open', 
+      to_user: getPartnerId() 
+    }).eq('id', activeLetter.id)
+    setActiveLetter(l => ({ ...l, status: 'open' }))
     fetchLetters()
   }
 
@@ -209,6 +229,9 @@ export default function App() {
             onAddComment={addComment}
             onDelete={deleteLetter}
             onEdit={editLetter}
+            onDeleteComment={deleteComment}
+            onEditComment={editComment}
+            onSendDraft={sendDraft}
           />
         )}
 

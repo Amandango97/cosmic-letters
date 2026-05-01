@@ -10,7 +10,7 @@ import rehypeStringify from 'rehype-stringify'
 import rehypeRaw from 'rehype-raw'
 import { supabase } from './supabase'
 
-export default function LetterView({ letter, comments, currentUser, isAuthor, onBack, onSeal, onUnseal, onAddComment, onDelete, onEdit }) {
+export default function LetterView({ letter, comments, currentUser, isAuthor, onBack, onSeal, onUnseal, onAddComment, onDelete, onEdit, onDeleteComment, onEditComment, onSendDraft }) {
   const [spans, setSpans] = useState(buildSpansFromComments(comments, letter.body))
   const [pendingSpan, setPending]   = useState(null)  // { id, text, top }
   const [replyText, setReplyText]   = useState({})    // spanId -> string
@@ -21,7 +21,13 @@ export default function LetterView({ letter, comments, currentUser, isAuthor, on
   const [editTitle, setEditTitle] = useState(letter.title)
   const [editBody, setEditBody]   = useState(letter.body)
   const [dragging, setDragging] = useState(false)
-const editTaRef = useRef(null)
+  const editTaRef = useRef(null)
+  const [hoveredComment, setHoveredComment] = useState(null)
+  const [hoveredDelete, setHoveredDelete] = useState(null)
+  const [editingComment, setEditingComment] = useState(null) // comment id
+  const [editCommentText, setEditCommentText] = useState('')
+  const [hoveredEdit, setHoveredEdit] = useState(null)
+  const editCommentTaRef = useRef(null)
 
   // Re-derive spans when comments change
   useEffect(() => {
@@ -34,6 +40,13 @@ const editTaRef = useRef(null)
     editTaRef.current.style.height = editTaRef.current.scrollHeight + 'px'
   }
 }, [editing])
+
+useEffect(() => {
+  if (editingComment && editCommentTaRef.current) {
+    editCommentTaRef.current.style.height = 'auto'
+    editCommentTaRef.current.style.height = editCommentTaRef.current.scrollHeight + 'px'
+  }
+}, [editingComment])
 
   // ── Sealed view ──────────────────────────────────────────────
   if (letter.status === 'locked' && !isAuthor) {
@@ -231,8 +244,11 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
               {isAuthor && letter.status === 'open'   && <button className="btn btn-sealed" style={{ fontSize: 11, padding: '3px 10px' }} onClick={onSeal}>seal</button>}
               {isAuthor && letter.status === 'locked' && <button className="btn btn-open"   style={{ fontSize: 11, padding: '3px 10px' }} onClick={onUnseal}>unseal</button>}
               {isAuthor && <button className="btn btn-ghost" style={{ fontSize: 11, padding: '3px 10px', color: '#f87171' }} onClick={deleteLetter}>delete</button>}
-              {isAuthor && letter.status === 'open' && !editing && (
+              {isAuthor && !editing && (
                 <button className="btn btn-ghost" style={{ fontSize: 11, padding: '3px 10px' }} onClick={() => { setEditing(true); setEditTitle(letter.title); setEditBody(letter.body) }}>edit</button>
+              )}
+              {isAuthor && letter.status === 'draft' && (
+                <button className="btn btn-open" style={{ fontSize: 11, padding: '3px 10px' }} onClick={onSendDraft}>send</button>
               )}
               {editing && (
                 <>
@@ -282,7 +298,7 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
                     className="compose-body-ta"
                     value={editBody}
                     onChange={e => setEditBody(e.target.value)}
-                    style={{ minHeight: 300 }}
+                    style={{ minHeight: 300, overflow: 'hidden' }}
                     onInput={autoResize}
                   />
                   {dragging && <p style={{ fontSize: 11, color: 'var(--accent-a)', marginTop: 6 }}>drop to insert image</p>}
@@ -324,12 +340,65 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
           {spans.map(sp => (
             <div key={sp.id} id={'mg-' + sp.id} style={{ marginBottom: 10 }}>
               {sp.comments.map((c, i) => (
-                <div key={i} className="cmt-bubble" style={{ cursor: 'pointer' }} onClick={() => focusSpan(sp.id)}>
+                <div
+                  key={i}
+                  className="cmt-bubble"
+                  style={{ cursor: 'pointer', position: 'relative', paddingBottom: 14 }}
+                  onClick={() => !editingComment && focusSpan(sp.id)}
+                  onMouseEnter={() => setHoveredComment(c.id)}
+                  onMouseLeave={() => setHoveredComment(null)}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                     <div className={`who who-${c.author_label?.toLowerCase()}`}>{c.author_label}</div>
                     <div style={{ fontSize: 10, color: 'var(--text-faint)' }}>{formatDate(c.created_at)}</div>
                   </div>
-                  <div className="body">{c.body}</div>
+
+                  {editingComment === c.id ? (
+                    <div onClick={e => e.stopPropagation()}>
+                      <textarea
+                        ref={editCommentTaRef}
+                        className="cmt-input"
+                        value={editCommentText}
+                        autoFocus
+                        onInput={autoResize}
+                        style={{ resize: 'vertical', lineHeight: 1.5, width: '100%' }}
+                        onChange={e => setEditCommentText(e.target.value)}
+                      />
+                      <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+                        <button className="btn btn-accent" style={{ fontSize: 11, padding: '3px 8px' }}
+                          onClick={() => { onEditComment(c.id, editCommentText); setEditingComment(null) }}>save</button>
+                        <button className="btn btn-ghost" style={{ fontSize: 11, padding: '3px 8px' }}
+                          onClick={() => setEditingComment(null)}>cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="body" style={{ whiteSpace: 'pre-wrap' }}>{c.body}</div>
+                  )}
+
+                  {c.author_id === currentUser.id && hoveredComment === c.id && editingComment !== c.id && (
+                    <div style={{ position: 'absolute', bottom: 8, right: 10, display: 'flex', gap: 10 }}>
+                      <button
+                        onClick={e => { e.stopPropagation(); setEditingComment(c.id); setEditCommentText(c.body) }}
+                        onMouseEnter={() => setHoveredEdit(c.id)}
+                        onMouseLeave={() => setHoveredEdit(null)}
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          fontSize: 11, color: hoveredEdit === c.id ? '#ffffff' : 'var(--text-muted)',
+                          fontFamily: 'var(--font-sans)', padding: 0, transition: 'color 0.15s',
+                        }}
+                      >edit</button>
+                      <button
+                        onClick={e => { e.stopPropagation(); onDeleteComment(c.id) }}
+                        onMouseEnter={() => setHoveredDelete(c.id)}
+                        onMouseLeave={() => setHoveredDelete(null)}
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          fontSize: 11, color: hoveredDelete === c.id ? '#ffffff' : '#f87171',
+                          fontFamily: 'var(--font-sans)', padding: 0, transition: 'color 0.15s',
+                        }}
+                      >delete</button>
+                    </div>
+                  )}
                 </div>
               ))}
               <div style={{ display: 'flex', gap: 5, marginTop: 4 }}>
@@ -339,7 +408,6 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
                   placeholder={`Reply`}
                   value={replyText[sp.id] || ''}
                   onChange={e => setReplyText(r => ({ ...r, [sp.id]: e.target.value }))}
-                  onKeyDown={e => e.key === 'Enter' && saveReply(sp.id, sp.text)}
                 />
                 <button className="btn btn-accent" style={{ padding: '3px 8px', fontSize: 11 }} onClick={() => saveReply(sp.id, sp.text)}>↩</button>
               </div>
@@ -356,10 +424,9 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
                 autoFocus
                 placeholder="write a comment…"
                 value={newCmtText}
-                rows={3}
-                style={{ resize: 'vertical', lineHeight: 1.5 }}
+                onInput={autoResize}
+                style={{ resize: 'vertical', lineHeight: 1.5, overflow: 'hidden' }}
                 onChange={e => setNewCmtText(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && !e.shiftKey && saveNewComment()}
               />
               <div style={{ display: 'flex', gap: 6 }}>
                 <button className="btn btn-accent" style={{ fontSize: 11, padding: '4px 10px' }} onClick={saveNewComment}>save</button>

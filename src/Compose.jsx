@@ -93,6 +93,7 @@ export default function Compose({ currentUser, partnerName, onSend, onCancel }) 
         <button className="btn btn-open"   onClick={() => send('open')}   disabled={saving || uploading || !body.trim()}>send open</button>
         <button className="btn btn-sealed" onClick={() => send('locked')} disabled={saving || uploading || !body.trim()}>seal &amp; send</button>
         <button className="btn btn-ghost"  onClick={onCancel} style={{ marginLeft: 'auto' }}>cancel</button>
+        <button className="btn btn-ghost" onClick={() => send('draft')} disabled={saving || !body.trim()}>save draft</button>
       </div>
     </div>
   )

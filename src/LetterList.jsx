@@ -4,9 +4,10 @@
 export default function LetterList({ letters, currentUser, partnerName, onOpen, onCompose, onLogout }) {
   const [view, setView] = useState('inbox')
 
-  const inbox = letters.filter(l => l.to_user === currentUser.id)
-  const sent  = letters.filter(l => l.from_user === currentUser.id)
-  const items = view === 'inbox' ? inbox : sent
+  const inbox = letters.filter(l => l.to_user === currentUser.id && l.status !== 'draft')
+  const sent   = letters.filter(l => l.from_user === currentUser.id && l.status !== 'draft')
+  const drafts = letters.filter(l => l.status === 'draft' && l.from_user === currentUser.id)
+  const items  = view === 'inbox' ? inbox : view === 'sent' ? sent : drafts
 
   const unread = items.filter(l => !l.read_at && l.status !== 'locked')
   const rest   = items.filter(l =>  l.read_at || l.status === 'locked')
@@ -27,6 +28,9 @@ export default function LetterList({ letters, currentUser, partnerName, onOpen, 
         </button>
         <button className={view === 'sent' ? 'on' : ''} onClick={() => setView('sent')}>
           from me
+        </button>
+        <button className={view === 'drafts' ? 'on' : ''} onClick={() => setView('drafts')}>
+          drafts
         </button>
       </div>
 
@@ -54,9 +58,12 @@ export default function LetterList({ letters, currentUser, partnerName, onOpen, 
   )
 }
 
+const drafts = letters.filter(l => l.status === 'draft' && l.from_user === currentUser.id)
+
 function Row({ letter: l, onOpen }) {
   const sealed = l.status === 'locked'
-  const orbClass = sealed ? 'orb-sealed' : (l.from_label === 'Amanda' ? 'orb-a' : 'orb-b')
+  const draft  = l.status === 'draft'
+  const orbClass = sealed || draft ? 'orb-sealed' : (l.from_label === 'Amanda' ? 'orb-a' : 'orb-b')
   const totalComments = l.comment_count ?? 0
 
   return (
@@ -66,12 +73,14 @@ function Row({ letter: l, onOpen }) {
     >
       <span className={`orb ${orbClass}`} />
       <span className={`title serif ${l.read_at && !sealed ? 'dim' : ''}`}>{l.title || '(untitled)'}</span>
-      {sealed
-        ? <span className="tag tag-sealed">sealed</span>
-        : totalComments > 0
-          ? <span className="cmt-count">{totalComments} comment{totalComments !== 1 ? 's' : ''}</span>
-          : <span className="cmt-count" />
-      }
+      {draft
+          ? <span className="tag tag-draft">draft</span>
+          : sealed
+            ? <span className="tag tag-sealed">sealed</span>
+            : totalComments > 0
+              ? <span className="cmt-count">{totalComments} comment{totalComments !== 1 ? 's' : ''}</span>
+              : <span className="cmt-count" />
+        }
       <span className="date">{formatDate(l.created_at)}</span>
     </div>
   )

@@ -301,6 +301,8 @@ body {
   border-radius: var(--radius-sm);
   padding: 14px 16px;
   margin-bottom: 12px;
+  overflow: hidden;
+  word-break: break-word;
 }
 .cmt-bubble .who {
   font-size: var(--text-xs); letter-spacing: 0.10em; text-transform: uppercase; margin-bottom: 4px;
@@ -323,6 +325,7 @@ body {
   color: var(--text-secondary); font-size: var(--text-body); padding: 4px 0;
   font-family: var(--font-sans); outline: none; margin-bottom: 7px;
   padding: 4px 0 4px 16px;
+  overflow: hidden;
 }
 .cmt-input::placeholder { color: var(--text-faint);font-size: var(--text-body);}
 
@@ -372,6 +375,10 @@ body {
   min-height: 680px;
 }
 .compose-body-ta::placeholder { color: var(--text-muted); }
+
+/* --- Draft --*/
+
+.tag-draft { color: var(--text-muted); border-color: var(--border); background: var(--surface); }
 
 /* -- Images --*/
 
