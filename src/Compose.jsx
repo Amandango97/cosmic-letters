@@ -1,14 +1,28 @@
-import { useState, useRef, useCallback, memo } from 'react'
+import { useState, useRef, useCallback, memo, useEffect } from 'react'
 import { supabase } from './supabase'
 
-
-const Compose = memo(function Compose({ currentUser, partnerName, onSend, onCancel }) {
+export default memo(function Compose({ currentUser, partnerName, onSend, onCancel, onAutoSave, onPromoteDraft, onDiscardDraft }) {
   const [title, setTitle]   = useState('')
   const [body, setBody]     = useState('')
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [dragging, setDragging] = useState(false)
+  const [autoSaved, setAutoSaved] = useState(false)
   const taRef = useRef(null)
+  const autoSaveTimer = useRef(null)
+  const draftIdRef = useRef(null)
+
+  useEffect(() => {
+    if (!body.trim()) return
+    setAutoSaved(false)
+    clearTimeout(autoSaveTimer.current)
+    autoSaveTimer.current = setTimeout(async () => {
+      const id = await onAutoSave(title.trim() || '(untitled)', body.trim(), draftIdRef.current)
+      draftIdRef.current = id
+      setAutoSaved(true)
+    }, 500)
+    return () => clearTimeout(autoSaveTimer.current)
+  }, [body, title])
 
   async function uploadImage(file) {
     if (!file.type.startsWith('image/')) return
@@ -19,7 +33,6 @@ const Compose = memo(function Compose({ currentUser, partnerName, onSend, onCanc
     if (error) { console.error(error); setUploading(false); return }
     const { data } = supabase.storage.from('letter-images').getPublicUrl(path)
     const url = data.publicUrl
-    // Insert markdown at cursor position
     const ta = taRef.current
     const start = ta.selectionStart
     const end = ta.selectionEnd
@@ -49,7 +62,13 @@ const Compose = memo(function Compose({ currentUser, partnerName, onSend, onCanc
   async function send(status) {
     if (!body.trim()) return
     setSaving(true)
-    await onSend(title.trim() || '(untitled)', body.trim(), status)
+    clearTimeout(autoSaveTimer.current)
+    if (draftIdRef.current) {
+      await onAutoSave(title.trim() || '(untitled)', body.trim(), draftIdRef.current)
+      await onPromoteDraft(draftIdRef.current, status)
+    } else {
+      await onSend(title.trim() || '(untitled)', body.trim(), status)
+    }
     setSaving(false)
   }
 
@@ -91,14 +110,38 @@ const Compose = memo(function Compose({ currentUser, partnerName, onSend, onCanc
         {dragging && <p style={{ fontSize: 11, color: 'var(--accent-a)', marginTop: 6 }}>drop to insert image</p>}
       </div>
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-  <button className="btn btn-open"   onClick={() => send('open')}   disabled={saving || uploading || !body.trim()}>send open</button>
-  <button className="btn btn-sealed" onClick={() => send('locked')} disabled={saving || uploading || !body.trim()}>seal &amp; send</button>
-  <button className="btn btn-ghost"  onClick={() => send('draft')}  disabled={saving || !body.trim()}>save draft</button>
-  <button className="btn btn-ghost"  onClick={onCancel} style={{ marginLeft: 'auto' }}>cancel</button>
-</div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <button className="btn btn-open"   onClick={() => send('open')}   disabled={saving || uploading || !body.trim()}>send open</button>
+        <button className="btn btn-sealed" onClick={() => send('locked')} disabled={saving || uploading || !body.trim()}>seal &amp; send</button>
+        <button
+          className="btn btn-ghost"
+          onClick={() => send('draft')}
+          disabled={saving || !body.trim()}
+          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+        >
+          <span style={{
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            background: autoSaved ? '#7ecba1' : '#c4874a',
+            transition: 'background 0.6s',
+            flexShrink: 0,
+          }} />
+          save draft
+        </button>
+          <span style={{ fontSize: 10, color: 'var(--text-faint)', letterSpacing: '0.08em' }}>autosaves</span>
+        <button
+          className="btn btn-ghost"
+          onClick={async () => {
+            clearTimeout(autoSaveTimer.current)
+            if (draftIdRef.current) {
+              await onDiscardDraft(draftIdRef.current)
+            }
+            onCancel()
+          }}
+          style={{ marginLeft: 'auto' }}
+        >cancel</button>
+      </div>
     </div>
   )
 })
-
-export default memo(Compose)

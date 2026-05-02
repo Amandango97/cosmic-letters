@@ -213,6 +213,39 @@ export default function App() {
     fetchLetters()
   }
 
+  async function autoSaveDraft(title, body, existingId) {
+    if (existingId) {
+      await supabase.from('letters').update({ title, body }).eq('id', existingId)
+      fetchLetters()
+      return existingId
+    } else {
+      const { data, error } = await supabase.from('letters').insert({
+        from_user:  session.user.id,
+        to_user:    session.user.id,
+        from_label: USER_LABELS[session.user.id],
+        title,
+        body,
+        status: 'draft',
+      }).select().single()
+      if (error) { console.error(error); return null }
+      fetchLetters()
+      return data.id
+    }
+  }
+
+  async function promoteDraft(draftId, status) {
+    await supabase.from('letters').update({
+      status,
+      to_user: status === 'draft' ? session.user.id : getPartnerId()
+    }).eq('id', draftId)
+    fetchLetters()
+    setScreen('list')
+  }
+
+  async function discardDraft(draftId) {
+  await supabase.from('letters').delete().eq('id', draftId)
+  fetchLetters()
+}
   function getPartnerId() {
     return Object.keys(USER_LABELS).find(id => id !== session.user.id)
   }
@@ -287,6 +320,9 @@ export default function App() {
             partnerName={partnerLabel}
             onSend={sendLetter}
             onCancel={() => setScreen('list')}
+            onAutoSave={autoSaveDraft}
+            onPromoteDraft={promoteDraft}
+            onDiscardDraft={discardDraft}
           />
         )}
       </div>

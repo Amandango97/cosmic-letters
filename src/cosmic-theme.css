@@ -407,6 +407,43 @@ html, body {
   overflow-x: hidden;
 }
 
+
+/* ---Buttons ---*/
+
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.icon-btn:hover {
+  background: var(--surface-hover);
+}
+
+.icon-btn-danger {
+  color: rgba(248, 113, 113, 0.6);
+}
+
+.icon-btn-danger:hover {
+  background: rgba(248, 113, 113, 0.1);
+  color: #f87171;
+}
+
+.btn-open:hover {
+  background: rgba(100, 180, 120, 0.2);
+  border-color: var(--open-border);
+}
+
+.btn-sealed:hover {
+  background: rgba(196, 135, 74, 0.2);
+  border-color: var(--sealed-border);
+}
+
 /* ── Login ── */
 .login-wrap {
   min-height: 100vh; display: flex; align-items: center; justify-content: center;
