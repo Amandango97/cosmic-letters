@@ -1,7 +1,7 @@
 // App.jsx — root component
 // Handles: auth state, data fetching, routing between screens
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { supabase } from './supabase'
 import StarField   from './StarField'
 import Login       from './Login'
@@ -23,10 +23,14 @@ const USER_LABELS = {
 export default function App() {
   const [session,    setSession]    = useState(null)
   const [letters,    setLetters]    = useState([])
-  const [comments,   setComments]   = useState([])
+  const [comments, setComments] = useState([])
+  const commentsCache = useRef({})
   const [screen,     setScreen]     = useState('list')   // 'list' | 'letter' | 'compose'
   const [activeLetter, setActiveLetter] = useState(null)
   const [loading,    setLoading]    = useState(true)
+  const [listView, setListView] = useState('inbox')
+  const [commentsLoading, setCommentsLoading] = useState(false)
+  const [lettersLoading, setLettersLoading] = useState(true)
 
   // ── Auth ────────────────────────────────────────────────────
   useEffect(() => {
@@ -57,15 +61,15 @@ export default function App() {
   }, [session])
 
   async function fetchLetters() {
+    setLettersLoading(true)
     const { data, error } = await supabase
       .from('letters')
       .select('*, comments(count)')
       .or(`from_user.eq.${session.user.id},to_user.eq.${session.user.id}`)
       .order('created_at', { ascending: false })
 
-    if (error) { console.error(error); return }
+    if (error) { console.error(error); setLettersLoading(false); return }
 
-    // Deduplicate — drafts match both from_user and to_user so appear twice
     const seen = new Set()
     const deduped = (data || []).filter(l => {
       if (seen.has(l.id)) return false
@@ -79,26 +83,38 @@ export default function App() {
       comment_count: l.comments?.[0]?.count ?? 0,
     }))
     setLetters(withLabels)
+    setLettersLoading(false)
   }
 
   async function fetchComments(letterId) {
+    setCommentsLoading(true)
     const { data, error } = await supabase
       .from('comments')
       .select('*')
       .eq('letter_id', letterId)
       .order('created_at', { ascending: true })
 
-    if (error) { console.error(error); return }
+    if (error) { console.error(error); setCommentsLoading(false); return }
     const withLabels = (data || []).map(c => ({ ...c, author_label: USER_LABELS[c.author_id] || '?' }))
+    commentsCache.current[letterId] = withLabels
     setComments(withLabels)
+    setCommentsLoading(false)
   }
 
   // ── Actions ──────────────────────────────────────────────────
   async function openLetter(letter) {
     setActiveLetter(letter)
-    setComments([])          // clear immediately before fetching
     setScreen('letter')
-    await fetchComments(letter.id)
+
+    // Show cached comments instantly if available
+    if (commentsCache.current[letter.id]) {
+      setComments(commentsCache.current[letter.id])
+    } else {
+      setComments([])
+    }
+
+    // Always refresh in background
+    fetchComments(letter.id)
 
     if (letter.to_user === session.user.id && !letter.read_at) {
       await supabase.from('letters').update({ read_at: new Date().toISOString() }).eq('id', letter.id)
@@ -155,28 +171,31 @@ export default function App() {
       body,
     })
     if (error) { console.error(error); return }
-    await fetchComments(activeLetter.id)  // wait for this before moving on
+    delete commentsCache.current[activeLetter.id]
+    await fetchComments(activeLetter.id)
     fetchLetters()
   }
 
   async function deleteComment(commentId) {
     await supabase.from('comments').delete().eq('id', commentId)
+    delete commentsCache.current[activeLetter.id]
     await fetchComments(activeLetter.id)
     fetchLetters()
-    }
- 
+  }
+
   async function editComment(commentId, body) {
     await supabase.from('comments').update({ body }).eq('id', commentId)
+    delete commentsCache.current[activeLetter.id]
     await fetchComments(activeLetter.id)
     fetchLetters()
-    }
+  }
 
-  async function sendDraft() {
+  async function sendDraft(status) {
     await supabase.from('letters').update({ 
-      status: 'open', 
+      status, 
       to_user: getPartnerId() 
     }).eq('id', activeLetter.id)
-    setActiveLetter(l => ({ ...l, status: 'open' }))
+    setActiveLetter(l => ({ ...l, status }))
     fetchLetters()
   }
 
@@ -222,6 +241,9 @@ export default function App() {
             onOpen={openLetter}
             onCompose={() => setScreen('compose')}
             onLogout={logout}
+            view={listView}
+            onViewChange={setListView}
+            loading={lettersLoading}
           />
         )}
 
@@ -240,6 +262,7 @@ export default function App() {
             onDeleteComment={deleteComment}
             onEditComment={editComment}
             onSendDraft={sendDraft}
+            commentsLoading={commentsLoading}
           />
         )}
 

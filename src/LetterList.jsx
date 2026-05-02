@@ -1,8 +1,7 @@
 // LetterList.jsx — inbox / sent list view
 // Receives: letters[], currentUser, partnerName, onOpen(letter), onCompose()
 
-export default function LetterList({ letters, currentUser, partnerName, onOpen, onCompose, onLogout }) {
-  const [view, setView] = useState('inbox')
+export default function LetterList({ letters, currentUser, partnerName, onOpen, onCompose, onLogout, view, onViewChange, loading }) {
 
   const inbox = letters.filter(l => l.to_user === currentUser.id && l.status !== 'draft')
   const sent  = letters.filter(l => l.from_user === currentUser.id)
@@ -22,17 +21,25 @@ export default function LetterList({ letters, currentUser, partnerName, onOpen, 
       </div>
 
       <div className="tab-bar">
-        <button className={view === 'inbox' ? 'on' : ''} onClick={() => setView('inbox')}>
+        <button className={view === 'inbox' ? 'on' : ''} onClick={() => onViewChange('inbox')}>
           from {partnerName}
         </button>
-        <button className={view === 'sent' ? 'on' : ''} onClick={() => setView('sent')}>
+        <button className={view === 'sent' ? 'on' : ''} onClick={() => onViewChange('sent')}>
           from me
         </button>
       </div>
 
       {items.length === 0 && (
         <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--text-faint)', textAlign: 'center', padding: '3rem 0' }}>
-          nothing here yet
+          {loading ? (
+            <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--text-faint)', textAlign: 'center', padding: '3rem 0' }}>
+              loading…
+            </p>
+          ) : items.length === 0 ? (
+            <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', color: 'var(--text-faint)', textAlign: 'center', padding: '3rem 0' }}>
+              nothing here yet
+            </p>
+          ) : null}
         </p>
       )}
 
@@ -89,5 +96,3 @@ function formatDate(iso) {
   if (diff < 172800000) return 'yesterday ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
 }
-
-import { useState } from 'react'

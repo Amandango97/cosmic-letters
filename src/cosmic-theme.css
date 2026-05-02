@@ -363,6 +363,7 @@ body {
   border-bottom: 0.5px solid var(--border);
   color: var(--text-primary); font-family: var(--font-serif);
   font-size: 18px; padding: 0 0 10px; margin-bottom: 14px; outline: none;
+  font-family: var(--font-sans);
 }
 .compose-title-inp::placeholder { color: var(--text-muted); }
 .compose-body-ta {
@@ -429,7 +430,7 @@ body {
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 1.5rem;
 }
-.app-name { font-family: var(--font-serif); font-size: 22fpx; color: var(--text-primary); letter-spacing: 0.06em; }
+.app-name { font-family: var(--font-serif); font-size: 22px; color: var(--text-primary); letter-spacing: 0.06em; }
 
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 4px; }

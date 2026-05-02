@@ -10,7 +10,7 @@ import rehypeStringify from 'rehype-stringify'
 import rehypeRaw from 'rehype-raw'
 import { supabase } from './supabase'
 
-export default function LetterView({ letter, comments, currentUser, isAuthor, onBack, onSeal, onUnseal, onAddComment, onDelete, onEdit, onDeleteComment, onEditComment, onSendDraft }) {
+export default function LetterView({ letter, comments, currentUser, isAuthor, onBack, onSeal, onUnseal, onAddComment, onDelete, onEdit, onDeleteComment, onEditComment, onSendDraft, commentsLoading }) {
   const [spans, setSpans] = useState(buildSpansFromComments(comments, letter.body))
   const [pendingSpan, setPending]   = useState(null)  // { id, text, top }
   const [replyText, setReplyText]   = useState({})    // spanId -> string
@@ -249,7 +249,10 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
                 <button className="btn btn-ghost" style={{ fontSize: 11, padding: '3px 10px' }} onClick={() => { setEditing(true); setEditTitle(letter.title); setEditBody(letter.body) }}>edit</button>
               )}
               {isAuthor && letter.status === 'draft' && (
-                <button className="btn btn-open" style={{ fontSize: 11, padding: '3px 10px' }} onClick={onSendDraft}>send</button>
+                <>
+                  <button className="btn btn-open" style={{ fontSize: 11, padding: '3px 10px' }} onClick={() => onSendDraft('open')}>send</button>
+                  <button className="btn btn-sealed" style={{ fontSize: 11, padding: '3px 10px' }} onClick={() => onSendDraft('locked')}>seal & send</button>
+                </>
               )}
               {editing && (
                 <>
@@ -334,7 +337,15 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
           <span className="margin-col-label">comments</span>
           {spans.length === 0 && !pendingSpan && (
             <p style={{ fontSize: 12, color: 'var(--text-faint)', fontStyle: 'italic', textAlign: 'center', paddingTop: '1rem' }}>
-              no comments yet
+              {commentsLoading && spans.length === 0 ? (
+                <p style={{ fontSize: 12, color: 'var(--text-faint)', fontStyle: 'italic', textAlign: 'center', paddingTop: '1rem' }}>
+                  loading…
+                </p>
+              ) : spans.length === 0 && !pendingSpan ? (
+                <p style={{ fontSize: 12, color: 'var(--text-faint)', fontStyle: 'italic', textAlign: 'center', paddingTop: '1rem' }}>
+                  no comments yet
+                </p>
+              ) : null}
             </p>
           )}
 
