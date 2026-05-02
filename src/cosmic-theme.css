@@ -407,6 +407,15 @@ html, body {
   overflow-x: hidden;
 }
 
+/* ---- Audio */
+
+.letter-body audio {
+  width: 100%;
+  margin: 1rem 0;
+  display: block;
+  border-radius: var(--radius-md);
+  accent-color: var(--accent-a);
+}
 
 /* ---Buttons ---*/
 

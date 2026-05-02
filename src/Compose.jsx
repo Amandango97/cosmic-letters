@@ -24,8 +24,11 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
     return () => clearTimeout(autoSaveTimer.current)
   }, [body, title])
 
-  async function uploadImage(file) {
-    if (!file.type.startsWith('image/')) return
+  async function uploadFile(file) {
+    const isImage = file.type.startsWith('image/')
+    const isAudio = file.type.startsWith('audio/')
+    if (!isImage && !isAudio) return
+    
     setUploading(true)
     const ext = file.name.split('.').pop()
     const path = `${currentUser.id}/${Date.now()}.${ext}`
@@ -33,10 +36,13 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
     if (error) { console.error(error); setUploading(false); return }
     const { data } = supabase.storage.from('letter-images').getPublicUrl(path)
     const url = data.publicUrl
+
     const ta = taRef.current
     const start = ta.selectionStart
     const end = ta.selectionEnd
-    const insertion = `![](${url})`
+    const insertion = isAudio
+      ? `\n<audio controls src="${url}"></audio>\n`
+      : `![](${url})`
     setBody(b => b.slice(0, start) + insertion + b.slice(end))
     setUploading(false)
   }
@@ -45,12 +51,14 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
     e.preventDefault()
     setDragging(false)
     const file = e.dataTransfer.files[0]
-    if (file) uploadImage(file)
+    if (file) uploadFile(file)
   }
 
   function handlePaste(e) {
-    const file = Array.from(e.clipboardData.files).find(f => f.type.startsWith('image/'))
-    if (file) { e.preventDefault(); uploadImage(file) }
+    const file = Array.from(e.clipboardData.files).find(f => 
+      f.type.startsWith('image/') || f.type.startsWith('audio/')
+    )
+    if (file) { e.preventDefault(); uploadFile(file) }
   }
 
   const autoResize = useCallback((e) => {

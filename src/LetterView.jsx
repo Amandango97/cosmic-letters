@@ -324,7 +324,10 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
                     e.preventDefault()
                     setDragging(false)
                     const file = e.dataTransfer.files[0]
-                    if (!file?.type.startsWith('image/')) return
+                    if (!file) return
+                    const isImage = file.type.startsWith('image/')
+                    const isAudio = file.type.startsWith('audio/')
+                    if (!isImage && !isAudio) return
                     const ext = file.name.split('.').pop()
                     const path = `${currentUser.id}/${Date.now()}.${ext}`
                     const { error } = await supabase.storage.from('letter-images').upload(path, file)
@@ -333,7 +336,9 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
                     const ta = editTaRef.current
                     const start = ta.selectionStart
                     const end = ta.selectionEnd
-                    const insertion = `\n![](${data.publicUrl})\n`
+                    const insertion = isAudio
+                      ? `\n<audio controls src="${data.publicUrl}"></audio>\n`
+                      : `\n![](${data.publicUrl})\n`
                     setEditBody(b => b.slice(0, start) + insertion + b.slice(end))
                   }}
                   style={{
