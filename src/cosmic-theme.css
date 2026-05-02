@@ -401,6 +401,12 @@ body {
     color: var(--accent-a) !important;
   }
 
+/* -- Horizontal bounce --*/
+html, body {
+  overscroll-behavior-x: none;
+  overflow-x: hidden;
+}
+
 /* ── Login ── */
 .login-wrap {
   min-height: 100vh; display: flex; align-items: center; justify-content: center;
@@ -451,6 +457,10 @@ body {
 /* ── Mobile responsiveness ── */
 @media (max-width: 680px) {
   .ui-layer {
+    padding: 1.25rem 1rem;
+  }
+
+  .card {
     padding: 1.25rem 1rem;
   }
 
