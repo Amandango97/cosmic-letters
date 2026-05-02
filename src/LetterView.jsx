@@ -539,14 +539,16 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
                 </div>
               ))}
               <div style={{ display: 'flex', gap: 5, marginTop: 4 }}>
-                <input
+                <textarea
                   className="cmt-input"
-                  style={{ flex: 1 }}
-                  placeholder={`Reply`}
+                  style={{ flex: 1, resize: 'none', overflow: 'hidden', lineHeight: 1.5 }}
+                  placeholder="Reply"
                   value={replyText[sp.id] || ''}
+                  rows={1}
                   onChange={e => setReplyText(r => ({ ...r, [sp.id]: e.target.value }))}
+                  onInput={autoResize}
                 />
-                <button className="btn btn-accent" style={{ padding: '3px 8px', fontSize: 11 }} onClick={() => saveReply(sp.id, sp.text)}>↩</button>
+                <button className="btn btn-accent" style={{ padding: '3px 8px', fontSize: 11, alignSelf: 'flex-end' }} onClick={() => saveReply(sp.id, sp.text)}>↩</button>
               </div>
             </div>
           ))}
