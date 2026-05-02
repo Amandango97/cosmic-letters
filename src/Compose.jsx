@@ -92,11 +92,11 @@ const Compose = memo(function Compose({ currentUser, partnerName, onSend, onCanc
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button className="btn btn-open"   onClick={() => send('open')}   disabled={saving || uploading || !body.trim()}>send open</button>
-        <button className="btn btn-sealed" onClick={() => send('locked')} disabled={saving || uploading || !body.trim()}>seal &amp; send</button>
-        <button className="btn btn-ghost"  onClick={onCancel} style={{ marginLeft: 'auto' }}>cancel</button>
-        <button className="btn btn-ghost" onClick={() => send('draft')} disabled={saving || !body.trim()}>save draft</button>
-      </div>
+  <button className="btn btn-open"   onClick={() => send('open')}   disabled={saving || uploading || !body.trim()}>send open</button>
+  <button className="btn btn-sealed" onClick={() => send('locked')} disabled={saving || uploading || !body.trim()}>seal &amp; send</button>
+  <button className="btn btn-ghost"  onClick={() => send('draft')}  disabled={saving || !body.trim()}>save draft</button>
+  <button className="btn btn-ghost"  onClick={onCancel} style={{ marginLeft: 'auto' }}>cancel</button>
+</div>
     </div>
   )
 })

@@ -5,9 +5,8 @@ export default function LetterList({ letters, currentUser, partnerName, onOpen, 
   const [view, setView] = useState('inbox')
 
   const inbox = letters.filter(l => l.to_user === currentUser.id && l.status !== 'draft')
-  const sent   = letters.filter(l => l.from_user === currentUser.id && l.status !== 'draft')
-  const drafts = letters.filter(l => l.status === 'draft' && l.from_user === currentUser.id)
-  const items  = view === 'inbox' ? inbox : view === 'sent' ? sent : drafts
+  const sent  = letters.filter(l => l.from_user === currentUser.id)
+  const items = view === 'inbox' ? inbox : sent
 
   const unread = items.filter(l => !l.read_at && l.status !== 'locked')
   const rest   = items.filter(l =>  l.read_at || l.status === 'locked')
@@ -28,9 +27,6 @@ export default function LetterList({ letters, currentUser, partnerName, onOpen, 
         </button>
         <button className={view === 'sent' ? 'on' : ''} onClick={() => setView('sent')}>
           from me
-        </button>
-        <button className={view === 'drafts' ? 'on' : ''} onClick={() => setView('drafts')}>
-          drafts
         </button>
       </div>
 
