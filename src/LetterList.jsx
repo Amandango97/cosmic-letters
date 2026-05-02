@@ -58,8 +58,6 @@ export default function LetterList({ letters, currentUser, partnerName, onOpen, 
   )
 }
 
-const drafts = letters.filter(l => l.status === 'draft' && l.from_user === currentUser.id)
-
 function Row({ letter: l, onOpen }) {
   const sealed = l.status === 'locked'
   const draft  = l.status === 'draft'

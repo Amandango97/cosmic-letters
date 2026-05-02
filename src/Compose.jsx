@@ -1,7 +1,8 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback, memo } from 'react'
 import { supabase } from './supabase'
 
-export default function Compose({ currentUser, partnerName, onSend, onCancel }) {
+
+const Compose = memo(function Compose({ currentUser, partnerName, onSend, onCancel }) {
   const [title, setTitle]   = useState('')
   const [body, setBody]     = useState('')
   const [saving, setSaving] = useState(false)
@@ -39,10 +40,11 @@ export default function Compose({ currentUser, partnerName, onSend, onCancel }) 
     if (file) { e.preventDefault(); uploadImage(file) }
   }
 
-  function autoResize(e) {
-    e.target.style.height = 'auto'
-    e.target.style.height = e.target.scrollHeight + 'px'
-  }
+  const autoResize = useCallback((e) => {
+    const ta = e.target
+    ta.style.height = 'auto'
+    ta.style.height = ta.scrollHeight + 'px'
+  }, [])
 
   async function send(status) {
     if (!body.trim()) return
@@ -97,4 +99,6 @@ export default function Compose({ currentUser, partnerName, onSend, onCancel }) 
       </div>
     </div>
   )
-}
+})
+
+export default memo(Compose)

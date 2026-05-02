@@ -1,7 +1,7 @@
 // App.jsx — root component
 // Handles: auth state, data fetching, routing between screens
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from './supabase'
 import StarField   from './StarField'
 import Login       from './Login'
@@ -65,7 +65,15 @@ export default function App() {
 
     if (error) { console.error(error); return }
 
-    const withLabels = (data || []).map(l => ({
+    // Deduplicate — drafts match both from_user and to_user so appear twice
+    const seen = new Set()
+    const deduped = (data || []).filter(l => {
+      if (seen.has(l.id)) return false
+      seen.add(l.id)
+      return true
+    })
+
+    const withLabels = deduped.map(l => ({
       ...l,
       from_label:    USER_LABELS[l.from_user] || '?',
       comment_count: l.comments?.[0]?.count ?? 0,
@@ -98,19 +106,19 @@ export default function App() {
     }
   }
 
-  async function sendLetter(title, body, status) {
-    const { error } = await supabase.from('letters').insert({
-      from_user:  session.user.id,
-      to_user:    status === 'draft' ? session.user.id : getPartnerId(),
-      from_label: USER_LABELS[session.user.id],
-      title,
-      body,
-      status,
-    })
-    if (error) { console.error(error); return }
-    fetchLetters()
-    setScreen('list')
-  }
+  const sendLetter = useCallback(async (title, body, status) => {
+  const { error } = await supabase.from('letters').insert({
+    from_user:  session.user.id,
+    to_user:    status === 'draft' ? session.user.id : getPartnerId(),
+    from_label: USER_LABELS[session.user.id],
+    title,
+    body,
+    status,
+  })
+  if (error) { console.error(error); return }
+  fetchLetters()
+  setScreen('list')
+}, [session])
 
   async function sealLetter() {
     await supabase.from('letters').update({ status: 'locked' }).eq('id', activeLetter.id)

@@ -1,7 +1,7 @@
 // LetterView.jsx — open letter with inline margin comments
 // Receives: letter, comments[], currentUser, isAuthor, onBack, onSeal, onUnseal, onAddComment
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { unified } from 'unified'
 import remarkParse from 'remark-parse'
@@ -210,10 +210,11 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
     }
   }
 
-  function autoResize(e) {
-  e.target.style.height = 'auto'
-  e.target.style.height = e.target.scrollHeight + 'px'
-}
+  const autoResize = useCallback((e) => {
+    const ta = e.target
+    ta.style.height = 'auto'
+    ta.style.height = ta.scrollHeight + 'px'
+  }, [])
 
   // --- Delete handler ---
 
