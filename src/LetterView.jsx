@@ -9,6 +9,8 @@ import remarkRehype from 'remark-rehype'
 import rehypeStringify from 'rehype-stringify'
 import rehypeRaw from 'rehype-raw'
 import { supabase } from './supabase'
+import remarkGfm from 'remark-gfm'
+import rehypeExternalLinks from 'rehype-external-links'
 
 export default function LetterView({ letter, comments, currentUser, isAuthor, onBack, onSeal, onUnseal, onAddComment, onDelete, onEdit, onDeleteComment, onEditComment, onSendDraft, commentsLoading }) {
   const [spans, setSpans] = useState(buildSpansFromComments(comments, letter.body))
@@ -71,8 +73,10 @@ useEffect(() => {
   const md = letter.body || ''
   const file = unified()
     .use(remarkParse)
+    .use(remarkGfm)
     .use(remarkRehype, { allowDangerousHtml: true })
     .use(rehypeRaw)
+    .use(rehypeExternalLinks, { target: '_blank', rel: ['nofollow'] })
     .use(rehypeStringify)
     .processSync(md)
   let html = String(file)

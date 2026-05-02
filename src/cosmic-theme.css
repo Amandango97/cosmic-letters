@@ -390,6 +390,17 @@ body {
   display: block;
 }
 
+.letter-body p a,
+  .letter-body a {
+    color: var(--text-primary) !important;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .letter-body p a:hover,
+  .letter-body a:hover {
+    color: var(--accent-a) !important;
+  }
+
 /* ── Login ── */
 .login-wrap {
   min-height: 100vh; display: flex; align-items: center; justify-content: center;
