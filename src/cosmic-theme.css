@@ -301,7 +301,7 @@ body {
   border-radius: var(--radius-sm);
   padding: 14px 16px;
   margin-bottom: 12px;
-  overflow: hidden;
+  overflow: visible;
   word-break: break-word;
 }
 .cmt-bubble .who {
@@ -309,7 +309,7 @@ body {
 }
 .cmt-bubble .who.who-a { color: var(--accent-a); }
 .cmt-bubble .who.who-b { color: var(--accent-b); }
-.cmt-bubble .body { font-size: var(--text-body); color: var(--text-secondary); line-height: 1.6; }
+.cmt-bubble .body { font-size: var(--text-body); color: var(--text-secondary); line-height: 1.6; word-break: break-word; overflow-wrap: break-word;}
 
 .new-cmt-box {
   background: rgba(167,139,250,0.05);

@@ -12,7 +12,7 @@ import { supabase } from './supabase'
 import remarkGfm from 'remark-gfm'
 import rehypeExternalLinks from 'rehype-external-links'
 
-export default function LetterView({ letter, comments, currentUser, isAuthor, onBack, onSeal, onUnseal, onAddComment, onDelete, onEdit, onDeleteComment, onEditComment, onSendDraft, commentsLoading }) {
+export default function LetterView({ letter, comments, currentUser, isAuthor, onBack, onSeal, onUnseal, onAddComment, onDelete, onEdit, onDeleteComment, onEditComment, onSendDraft, commentsLoading, onReactToComment }) {
   const [spans, setSpans] = useState(buildSpansFromComments(comments, letter.body))
   const [pendingSpan, setPending]   = useState(null)  // { id, text, top }
   const [replyText, setReplyText]   = useState({})    // spanId -> string
@@ -30,6 +30,7 @@ export default function LetterView({ letter, comments, currentUser, isAuthor, on
   const [editCommentText, setEditCommentText] = useState('')
   const [hoveredEdit, setHoveredEdit] = useState(null)
   const editCommentTaRef = useRef(null)
+  const [emojiPickerFor, setEmojiPickerFor] = useState(null)
 
   // Re-derive spans when comments change
   useEffect(() => {
@@ -49,6 +50,12 @@ useEffect(() => {
     editCommentTaRef.current.style.height = editCommentTaRef.current.scrollHeight + 'px'
   }
 }, [editingComment])
+
+useEffect(() => {
+  function handleClick() { setEmojiPickerFor(null) }
+  document.addEventListener('click', handleClick)
+  return () => document.removeEventListener('click', handleClick)
+}, [])
 
   // ── Sealed view ──────────────────────────────────────────────
   if (letter.status === 'locked' && !isAuthor) {
@@ -391,6 +398,80 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
                     <div className="body" style={{ whiteSpace: 'pre-wrap' }}>{c.body}</div>
                   )}
 
+                  {/* Reactions */}
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 8, minHeight: 28, alignItems: 'center' }}>
+                      {Object.entries(c.reactions || {}).map(([emoji, users]) => (
+                        users.length > 0 && (
+                          <button
+                            key={emoji}
+                            onClick={e => { e.stopPropagation(); onReactToComment(c.id, emoji, c.reactions) }}
+                            style={{
+                              background: users.includes(currentUser.id) ? 'rgba(167,139,250,0.15)' : 'rgba(255,255,255,0.05)',
+                              border: `0.5px solid ${users.includes(currentUser.id) ? 'rgba(167,139,250,0.4)' : 'rgba(255,255,255,0.1)'}`,
+                              borderRadius: 'var(--radius-pill)',
+                              padding: '2px 8px',
+                              cursor: 'pointer',
+                              fontSize: 13,
+                              color: 'var(--text-primary)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 4,
+                            }}
+                          >
+                            {emoji} <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{users.length}</span>
+                          </button>
+                        )
+                      ))}
+                      <div style={{ position: 'relative', opacity: hoveredComment === c.id && editingComment !== c.id ? 1 : 0, transition: 'opacity 0.15s' }}>
+                        <button
+                          style={{
+                            background: 'none',
+                            border: '0.5px solid rgba(255,255,255,0.1)',
+                            borderRadius: 'var(--radius-pill)',
+                            padding: '2px 8px',
+                            cursor: 'pointer',
+                            fontSize: 13,
+                            color: 'var(--text-muted)',
+                          }}
+                          onClick={e => {
+                            e.stopPropagation()
+                            setEmojiPickerFor(emojiPickerFor === c.id ? null : c.id)
+                          }}
+                        >+</button>
+                        {emojiPickerFor === c.id && (
+                          <div
+                            onClick={e => e.stopPropagation()}
+                            style={{
+                              position: 'absolute',
+                              top: 28,
+                              left: 0,
+                              background: '#1a1230',
+                              border: '0.5px solid var(--border-hover)',
+                              borderRadius: 'var(--radius-sm)',
+                              padding: '6px 8px',
+                              display: 'flex',
+                              gap: 6,
+                              zIndex: 20,
+                            }}
+                          >
+                            {['❤️', '✨', '😢', '😂', '🔥', '👀'].map(emoji => (
+                              <button
+                                key={emoji}
+                                onClick={e => {
+                                  e.stopPropagation()
+                                  onReactToComment(c.id, emoji, c.reactions)
+                                  setEmojiPickerFor(null)
+                                }}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 2 }}
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
                   {c.author_id === currentUser.id && hoveredComment === c.id && editingComment !== c.id && (
                     <div style={{ position: 'absolute', bottom: 8, right: 10, display: 'flex', gap: 10 }}>
                       <button
@@ -429,6 +510,7 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
               </div>
             </div>
           ))}
+          
 
           {pendingSpan && (
             <div className="new-cmt-box">

@@ -190,6 +190,20 @@ export default function App() {
     fetchLetters()
   }
 
+  async function reactToComment(commentId, emoji, currentReactions) {
+    const userId = session.user.id
+    const updated = { ...currentReactions }
+    if (!updated[emoji]) updated[emoji] = []
+    if (updated[emoji].includes(userId)) {
+      updated[emoji] = updated[emoji].filter(id => id !== userId)
+      if (updated[emoji].length === 0) delete updated[emoji]
+    } else {
+      updated[emoji].push(userId)
+    }
+    await supabase.from('comments').update({ reactions: updated }).eq('id', commentId)
+    await fetchComments(activeLetter.id)
+  }
+
   async function sendDraft(status) {
     await supabase.from('letters').update({ 
       status, 
@@ -263,6 +277,7 @@ export default function App() {
             onEditComment={editComment}
             onSendDraft={sendDraft}
             commentsLoading={commentsLoading}
+            onReactToComment={reactToComment}
           />
         )}
 
