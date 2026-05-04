@@ -14,17 +14,12 @@ export default function StarField() {
     let shooters = []
     let W, H
 
-    let resizeTimer
-
     function resize() {
-      clearTimeout(resizeTimer)
-      resizeTimer = setTimeout(() => {
-        W = canvas.width  = window.innerWidth  * (window.devicePixelRatio || 1)
-        H = canvas.height = window.innerHeight * (window.devicePixelRatio || 1)
-        canvas.style.width  = window.innerWidth  + 'px'
-        canvas.style.height = window.innerHeight + 'px'
-        initStars()
-      }, 200)
+      W = canvas.width  = window.innerWidth  * (window.devicePixelRatio || 1)
+      H = canvas.height = window.innerHeight * (window.devicePixelRatio || 1)
+      canvas.style.width  = window.innerWidth  + 'px'
+      canvas.style.height = window.innerHeight + 'px'
+      initStars()
     }
 
     function initStars() {
@@ -101,12 +96,10 @@ export default function StarField() {
     }
 
     resize()
-    window.addEventListener('resize', resize)
     frame()
 
     return () => {
       cancelAnimationFrame(animId)
-      window.removeEventListener('resize', resize)
     }
   }, [])
 
