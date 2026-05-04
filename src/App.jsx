@@ -42,6 +42,17 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
+  // History
+
+  useEffect(() => {
+  function handlePopState() {
+    setScreen('list')
+    setActiveLetter(null)
+  }
+  window.addEventListener('popstate', handlePopState)
+  return () => window.removeEventListener('popstate', handlePopState)
+}, [])
+
   // ── Fetch letters when logged in ─────────────────────────────
   useEffect(() => {
     if (!session) return
@@ -103,6 +114,7 @@ export default function App() {
 
   // ── Actions ──────────────────────────────────────────────────
   async function openLetter(letter) {
+    history.pushState({ screen: 'letter' }, '')  // ← add this
     setActiveLetter(letter)
     setScreen('letter')
 
@@ -286,7 +298,7 @@ export default function App() {
             currentUser={currentUser}
             partnerName={partnerLabel}
             onOpen={openLetter}
-            onCompose={() => setScreen('compose')}
+            onCompose={() => { history.pushState({ screen: 'compose' }, ''); setScreen('compose') }}
             onLogout={logout}
             view={listView}
             onViewChange={setListView}
@@ -300,7 +312,7 @@ export default function App() {
             comments={comments}
             currentUser={currentUser}
             isAuthor={isAuthor}
-            onBack={() => { setScreen('list'); setActiveLetter(null) }}
+            onBack={() => { history.back() }}
             onSeal={sealLetter}
             onUnseal={unsealLetter}
             onAddComment={addComment}
@@ -319,7 +331,7 @@ export default function App() {
             currentUser={currentUser}
             partnerName={partnerLabel}
             onSend={sendLetter}
-            onCancel={() => setScreen('list')}
+            onCancel={() => { history.back() }}
             onAutoSave={autoSaveDraft}
             onPromoteDraft={promoteDraft}
             onDiscardDraft={discardDraft}
