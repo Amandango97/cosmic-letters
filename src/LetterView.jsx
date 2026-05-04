@@ -389,7 +389,7 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
         </div>
 
         {/* Margin */}
-        <div className="margin-col">
+        <div className="margin-col" style={{ minHeight: 120 }}>
           <span className="margin-col-label">comments</span>
           {spans.length === 0 && !pendingSpan && (
             <p style={{ fontSize: 12, color: 'var(--text-faint)', fontStyle: 'italic', textAlign: 'center', paddingTop: '1rem' }}>
