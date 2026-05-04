@@ -14,19 +14,17 @@ export default function StarField() {
     let shooters = []
     let W, H
 
+    let resizeTimer
+
     function resize() {
-      const newW = window.innerWidth * (window.devicePixelRatio || 1)
-      const newH = window.innerHeight * (window.devicePixelRatio || 1)
-      
-      // Don't reinit stars on mobile address bar show/hide (height-only changes)
-      const widthChanged = Math.abs(newW - W) > 1
-      
-      W = canvas.width  = newW
-      H = canvas.height = newH
-      canvas.style.width  = window.innerWidth  + 'px'
-      canvas.style.height = window.innerHeight + 'px'
-      
-      if (widthChanged) initStars()
+      clearTimeout(resizeTimer)
+      resizeTimer = setTimeout(() => {
+        W = canvas.width  = window.innerWidth  * (window.devicePixelRatio || 1)
+        H = canvas.height = window.innerHeight * (window.devicePixelRatio || 1)
+        canvas.style.width  = window.innerWidth  + 'px'
+        canvas.style.height = window.innerHeight + 'px'
+        initStars()
+      }, 200)
     }
 
     function initStars() {
