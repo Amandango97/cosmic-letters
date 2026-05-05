@@ -75,7 +75,7 @@ useEffect(() => {
     return (
       <div>
         <button className="btn btn-ghost" onClick={onBack} style={{ marginBottom: '1.1rem' }}>← back</button>
-        <div className="card">
+        <div className="card" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
           <div className="sealed-view">
             <div className="seal-icon"><div className="seal-circle" /></div>
             <p style={{ fontFamily: 'var(--font-serif)', color: 'var(--sealed-text)', fontSize: 15, marginBottom: 6 }}>
