@@ -78,9 +78,14 @@ function Row({ letter: l, onOpen }) {
           ? <span className="tag tag-draft">draft</span>
           : sealed
             ? <span className="tag tag-sealed">sealed</span>
-            : totalComments > 0
-              ? <span className="cmt-count">{totalComments} comment{totalComments !== 1 ? 's' : ''}</span>
-              : <span className="cmt-count" />
+            : (() => {
+                const reactionEntries = Object.entries(l.reactions || {}).filter(([, users]) => users.length > 0)
+                return reactionEntries.length > 0
+                  ? <span style={{ fontSize: 13, letterSpacing: '0.05em' }}>{reactionEntries.map(([emoji, users]) => `${emoji}${users.length > 1 ? users.length : ''}`).join(' ')}</span>
+                  : totalComments > 0
+                    ? <span className="cmt-count">{totalComments} comment{totalComments !== 1 ? 's' : ''}</span>
+                    : <span className="cmt-count" />
+              })()
         }
       <span className="date">{formatDate(l.created_at)}</span>
     </div>

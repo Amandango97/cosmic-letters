@@ -12,7 +12,7 @@ import { supabase } from './supabase'
 import remarkGfm from 'remark-gfm'
 import rehypeExternalLinks from 'rehype-external-links'
 
-export default function LetterView({ letter, comments, currentUser, isAuthor, onBack, onSeal, onUnseal, onAddComment, onDelete, onEdit, onDeleteComment, onEditComment, onSendDraft, commentsLoading, onReactToComment }) {
+export default function LetterView({ letter, comments, currentUser, isAuthor, onBack, onSeal, onUnseal, onAddComment, onDelete, onEdit, onDeleteComment, onEditComment, onSendDraft, commentsLoading, onReactToComment, onReactToLetter }) {
   const [spans, setSpans] = useState(buildSpansFromComments(comments, letter.body))
   const [pendingSpan, setPending]   = useState(null)  // { id, text, top }
   const [replyText, setReplyText]   = useState({})    // spanId -> string
@@ -383,26 +383,55 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
             </div>
 
           </div>
-          <p style={{ fontSize: 10, color: 'var(--text-faint)', textAlign: 'center', marginTop: 6 }}>
-            {editing ? '' : 'select text to leave a comment'}
-          </p>
         </div>
 
         {/* Margin */}
-        <div className="margin-col" style={{ minHeight: 120 }}>
-          <span className="margin-col-label">comments</span>
-          {spans.length === 0 && !pendingSpan && (
-            <p style={{ fontSize: 12, color: 'var(--text-faint)', fontStyle: 'italic', textAlign: 'center', paddingTop: '1rem' }}>
-              {commentsLoading && spans.length === 0 ? (
-                <p style={{ fontSize: 12, color: 'var(--text-faint)', fontStyle: 'italic', textAlign: 'center', paddingTop: '1rem' }}>
-                  loading…
+        <div className="margin-col">
+            <span className="margin-col-label">comments</span>
+
+            {/* Letter reactions */}
+            {!editing && (
+              <div style={{ marginBottom: '1.2rem', paddingBottom: '1rem', borderBottom: '0.5px solid var(--border)', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {['❤️', '✨', '😢', '😂', '🔥', '👀'].map(emoji => {
+                  const users = letter.reactions?.[emoji] || []
+                  const reacted = users.includes(currentUser.id)
+                  return (
+                    <button
+                      key={emoji}
+                      onClick={() => onReactToLetter(emoji, letter.reactions || {})}
+                      style={{
+                        background: reacted ? 'rgba(167,139,250,0.15)' : 'rgba(255,255,255,0.04)',
+                        border: `0.5px solid ${reacted ? 'rgba(167,139,250,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                        borderRadius: 'var(--radius-pill)',
+                        padding: '4px 10px',
+                        cursor: 'pointer',
+                        fontSize: 14,
+                        color: 'var(--text-primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        transition: 'background 0.15s, border-color 0.15s',
+                      }}
+                    >
+                      {emoji}
+                      {users.length > 0 && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{users.length}</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
+            {spans.length === 0 && !pendingSpan && (
+            <div style={{ textAlign: 'center', paddingTop: '0.5rem' }}>
+              <p style={{ fontSize: 12, color: 'var(--text-faint)', fontStyle: 'italic', marginBottom: 6 }}>
+                {commentsLoading ? 'loading…' : 'no comments yet'}
+              </p>
+              {!editing && !commentsLoading && (
+                <p style={{ fontSize: 10, color: 'var(--text-faint)', letterSpacing: '0.06em' }}>
+                  select text to leave a comment
                 </p>
-              ) : spans.length === 0 && !pendingSpan ? (
-                <p style={{ fontSize: 12, color: 'var(--text-faint)', fontStyle: 'italic', textAlign: 'center', paddingTop: '1rem' }}>
-                  no comments yet
-                </p>
-              ) : null}
-            </p>
+              )}
+            </div>
           )}
 
           {spans.map(sp => (

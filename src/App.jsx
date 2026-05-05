@@ -258,6 +258,22 @@ export default function App() {
   await supabase.from('letters').delete().eq('id', draftId)
   fetchLetters()
 }
+
+async function reactToLetter(emoji, currentReactions) {
+  const userId = session.user.id
+  const updated = { ...currentReactions }
+  if (!updated[emoji]) updated[emoji] = []
+  if (updated[emoji].includes(userId)) {
+    updated[emoji] = updated[emoji].filter(id => id !== userId)
+    if (updated[emoji].length === 0) delete updated[emoji]
+  } else {
+    updated[emoji].push(userId)
+  }
+  await supabase.from('letters').update({ reactions: updated }).eq('id', activeLetter.id)
+  setActiveLetter(l => ({ ...l, reactions: updated }))
+  fetchLetters()
+}
+
   function getPartnerId() {
     return Object.keys(USER_LABELS).find(id => id !== session.user.id)
   }
@@ -323,6 +339,7 @@ export default function App() {
             onSendDraft={sendDraft}
             commentsLoading={commentsLoading}
             onReactToComment={reactToComment}
+            onReactToLetter={reactToLetter}
           />
         )}
 
