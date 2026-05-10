@@ -12,7 +12,7 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
   const [autoSaved, setAutoSaved] = useState(false)
   const taRef = useRef(null)
   const autoSaveTimer = useRef(null)
-  const draftIdRef = useRef(null)
+  const draftIdRef = useRef(editLetter?.id || null)
   const fileInputRef = useRef(null)
   const [recording, setRecording] = useState(false)
   const [mediaRecorder, setMediaRecorder] = useState(null)
@@ -37,7 +37,10 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
   }, [body, title, saving])
 
   useEffect(() => {
-    if (editLetter) draftIdRef.current = editLetter.id
+    if (taRef.current) {
+      taRef.current.style.height = 'auto'
+      taRef.current.style.height = taRef.current.scrollHeight + 'px'
+    }
   }, [])
 
   async function uploadFile(file) {
@@ -162,7 +165,7 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
     autoSaveTimer.current = null
     if (draftIdRef.current) {
       await onAutoSave(title.trim() || '(untitled)', body.trim(), draftIdRef.current)
-      await onPromoteDraft(draftIdRef.current, status, isEdit)
+      await onPromoteDraft(draftIdRef.current, status, isEdit, title.trim() || '(untitled)', body.trim())
     } else {
       await onSend(title.trim() || '(untitled)', body.trim(), status)
     }
@@ -172,7 +175,7 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
   return (
   <div>
     <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: '1.1rem' }}>
-      <button className="btn btn-ghost" onClick={onCancel}>← back</button>
+      <button className="btn btn-ghost" onClick={() => onCancel(title, body)}>← back</button>
     </div>
 
     <div style={{ display: 'flex', gap: 32, alignItems: 'flex-start' }} className="letter-view-layout">
@@ -198,14 +201,15 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
             }}
           >
             <textarea
-              ref={taRef}
-              className="compose-body-ta"
-              placeholder={`Dear ${partnerName},`}
-              value={body}
-              onChange={e => setBody(e.target.value)}
-              onPaste={handlePaste}
-              onInput={autoResize}
-            />
+                ref={taRef}
+                className="compose-body-ta"
+                placeholder={`Dear ${partnerName},`}
+                value={body}
+                onChange={e => setBody(e.target.value)}
+                onPaste={handlePaste}
+                onInput={autoResize}
+                style={isEdit ? { minHeight: 0 } : undefined}
+              />
           </div>
           <div style={{ display: 'flex', gap: 6, paddingTop: 8, borderTop: '0.5px solid var(--border)', marginTop: 4 }}>
             <button
@@ -283,7 +287,7 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
                 save
               </button>
               <span style={{ fontSize: 10, color: 'var(--text-faint)', letterSpacing: '0.08em' }}>autosaves</span>
-              <button className="btn btn-ghost" onClick={onCancel} style={{ marginLeft: 'auto' }}>cancel</button>
+              <button className="btn btn-ghost" onClick={() => onCancel(title, body)} style={{ marginLeft: 'auto' }}>cancel</button>
             </>
           ) : (
             <>

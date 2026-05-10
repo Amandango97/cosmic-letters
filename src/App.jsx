@@ -51,6 +51,7 @@ export default function App() {
       } else {
         setScreen('list')
         setActiveLetter(null)
+        history.replaceState(null, '')
       }
     }
     window.addEventListener('popstate', handlePopState)
@@ -247,7 +248,7 @@ export default function App() {
     }
   }
 
-  async function promoteDraft(draftId, status, isEdit) {
+  async function promoteDraft(draftId, status, isEdit, title, body) {
     const letter = letters.find(l => l.id === draftId)
     await supabase.from('letters').update({
       status,
@@ -257,8 +258,7 @@ export default function App() {
     }).eq('id', draftId)
     fetchLetters()
     if (isEdit) {
-      const { data } = await supabase.from('letters').select('*, comments(count)').eq('id', draftId).single()
-      if (data) setActiveLetter({ ...data, from_label: USER_LABELS[data.from_user] || '?', comment_count: data.comments?.[0]?.count ?? 0 })
+      setActiveLetter(l => ({ ...l, status, ...(title && { title }), ...(body && { body }) }))
       setScreen('letter')
     } else {
       setScreen('list')
@@ -340,7 +340,7 @@ async function reactToLetter(emoji, currentReactions) {
             comments={comments}
             currentUser={currentUser}
             isAuthor={isAuthor}
-            onBack={() => { history.back() }}
+            onBack={() => { setScreen('list'); setActiveLetter(null); history.back() }}
             onSeal={sealLetter}
             onUnseal={unsealLetter}
             onAddComment={addComment}
@@ -360,9 +360,10 @@ async function reactToLetter(emoji, currentReactions) {
             currentUser={currentUser}
             partnerName={partnerLabel}
             onSend={sendLetter}
-            onCancel={() => {
+            onCancel={(title, body) => {
               const isEdit = !!(activeLetter?.from_user === session.user.id)
               if (isEdit) {
+                if (title || body) setActiveLetter(l => ({ ...l, ...(title && { title }), ...(body && { body }) }))
                 setScreen('letter')
               } else {
                 history.back()

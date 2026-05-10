@@ -8,13 +8,13 @@ export default function CommentsList({ comments, currentUser, onEditComment, onD
   const [hoveredDelete, setHoveredDelete] = useState(null)
   const [emojiPickerFor, setEmojiPickerFor] = useState(null)
 
-  if (!comments?.length) return null
-
   useEffect(() => {
     function handleClick() { setEmojiPickerFor(null) }
     document.addEventListener('click', handleClick)
     return () => document.removeEventListener('click', handleClick)
   }, [])
+  
+  if (!comments?.length) return null
 
   return (
     <>
