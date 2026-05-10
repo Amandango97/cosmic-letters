@@ -11,69 +11,20 @@ import rehypeRaw from 'rehype-raw'
 import { supabase } from './supabase'
 import remarkGfm from 'remark-gfm'
 import rehypeExternalLinks from 'rehype-external-links'
+import CommentsList from './CommentsList'
 
-export default function LetterView({ letter, comments, currentUser, isAuthor, onBack, onSeal, onUnseal, onAddComment, onDelete, onEdit, onDeleteComment, onEditComment, onSendDraft, commentsLoading, onReactToComment, onReactToLetter }) {
+export default function LetterView({ letter, comments, currentUser, isAuthor, onBack, onSeal, onUnseal, onAddComment, onDelete, onOpenEdit, onDeleteComment, onEditComment, onSendDraft, commentsLoading, onReactToComment, onReactToLetter }) {
   const [spans, setSpans] = useState(buildSpansFromComments(comments, letter.body))
   const [pendingSpan, setPending]   = useState(null)  // { id, text, top }
   const [replyText, setReplyText]   = useState({})    // spanId -> string
   const [newCmtText, setNewCmtText] = useState('')
   const bodyRef = useRef(null)
   const tipRef  = useRef(null)
-  const [editing, setEditing] = useState(false)
-  const [editTitle, setEditTitle] = useState(letter.title)
-  const [editBody, setEditBody]   = useState(letter.body)
-  const [dragging, setDragging] = useState(false)
-  const editTaRef = useRef(null)
-  const [hoveredComment, setHoveredComment] = useState(null)
-  const [hoveredDelete, setHoveredDelete] = useState(null)
-  const [editingComment, setEditingComment] = useState(null) // comment id
-  const [editCommentText, setEditCommentText] = useState('')
-  const [hoveredEdit, setHoveredEdit] = useState(null)
-  const editCommentTaRef = useRef(null)
-  const [emojiPickerFor, setEmojiPickerFor] = useState(null)
-  const editAutoSaveTimer = useRef(null)
-  const [editAutoSaved, setEditAutoSaved] = useState(false)
-  const editFileInputRef = useRef(null)
-  const [recording, setRecording] = useState(false)
-  const [mediaRecorder, setMediaRecorder] = useState(null)
-  const editChunksRef = useRef([])
-  const [editUploading, setEditUploading] = useState(false)
 
   // Re-derive spans when comments change
   useEffect(() => {
     setSpans(buildSpansFromComments(comments, letter.body))
   }, [comments, letter.body])
-
-  useEffect(() => {
-  if (editing && editTaRef.current) {
-    editTaRef.current.style.height = 'auto'
-    editTaRef.current.style.height = editTaRef.current.scrollHeight + 'px'
-  }
-}, [editing])
-
-useEffect(() => {
-  if (editingComment && editCommentTaRef.current) {
-    editCommentTaRef.current.style.height = 'auto'
-    editCommentTaRef.current.style.height = editCommentTaRef.current.scrollHeight + 'px'
-  }
-}, [editingComment])
-
-useEffect(() => {
-  function handleClick() { setEmojiPickerFor(null) }
-  document.addEventListener('click', handleClick)
-  return () => document.removeEventListener('click', handleClick)
-}, [])
-
-useEffect(() => {
-  if (!editing || !editBody.trim()) return
-  setEditAutoSaved(false)
-  clearTimeout(editAutoSaveTimer.current)
-  editAutoSaveTimer.current = setTimeout(async () => {
-    await onEdit(editTitle.trim() || '(untitled)', editBody.trim())
-    setEditAutoSaved(true)
-  }, 500)
-  return () => clearTimeout(editAutoSaveTimer.current)
-}, [editBody, editTitle, editing])
 
   // ── Sealed view ──────────────────────────────────────────────
   if (letter.status === 'locked' && !isAuthor) {
@@ -165,64 +116,9 @@ useEffect(() => {
   return html
 }
 
-  // -- Edit handler -----
-
-  async function uploadEditFile(file) {
-    const isImage = file.type.startsWith('image/')
-    const isAudio = file.type.startsWith('audio/')
-    if (!isImage && !isAudio) return
-    setEditUploading(true)
-    const ext = file.name.split('.').pop()
-    const path = `${currentUser.id}/${Date.now()}.${ext}`
-    const { error } = await supabase.storage.from('letter-images').upload(path, file)
-    if (error) { setEditUploading(false); return }
-    const { data } = supabase.storage.from('letter-images').getPublicUrl(path)
-    const ta = editTaRef.current
-    const start = ta?.selectionStart ?? editBody.length
-    const end = ta?.selectionEnd ?? editBody.length
-    const insertion = isAudio
-      ? `\n<audio controls src="${data.publicUrl}"></audio>\n`
-      : `\n![](${data.publicUrl})\n`
-    setEditBody(b => b.slice(0, start) + insertion + b.slice(end))
-    setEditUploading(false)
-  }
-
-  async function startEditRecording() {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-    const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
-    const ext = mimeType === 'audio/webm' ? 'webm' : 'mp4'
-    const mr = new MediaRecorder(stream, { mimeType })
-    editChunksRef.current = []
-    mr.ondataavailable = e => editChunksRef.current.push(e.data)
-    mr.onstop = async () => {
-      stream.getTracks().forEach(t => t.stop())
-      const blob = new Blob(editChunksRef.current, { type: mimeType })
-      const file = new File([blob], `voice-${Date.now()}.${ext}`, { type: mimeType })
-      await uploadEditFile(file)
-    }
-    mr.start()
-    setMediaRecorder(mr)
-    setRecording(true)
-  }
-
-  function stopEditRecording() {
-    mediaRecorder?.stop()
-    setMediaRecorder(null)
-    setRecording(false)
-  }
-
-  async function saveEdit() {
-    clearTimeout(editAutoSaveTimer.current)
-    await onEdit(editTitle.trim() || '(untitled)', editBody.trim())
-    setEditing(false)
-  }
-
   // ── Selection handler ────────────────────────────────────────
   function handleMouseUp() {
     const sel = window.getSelection()
-    console.log('mouseup fired')
-    console.log('selection:', sel?.toString())
-    console.log('tipRef:', tipRef.current)
     
     if (!sel || sel.isCollapsed || !sel.toString().trim()) {
       tipRef.current.style.display = 'none'
@@ -231,11 +127,6 @@ useEffect(() => {
     const range = sel.getRangeAt(0)
     const rect  = range.getBoundingClientRect()
     const wr    = bodyRef.current.getBoundingClientRect()
-    
-    console.log('rect:', rect)
-    console.log('wr:', wr)
-    console.log('left:', Math.max(0, rect.left - wr.left + rect.width / 2 - 45))
-    console.log('top:', rect.top - wr.top - 36)
     
     const rawTop = rect.top - wr.top - 36
 tipRef.current.style.display = 'block'
@@ -324,20 +215,11 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
                   <button className="btn btn-sealed" style={{ fontSize: 11, padding: '3px 10px' }} onClick={() => onSendDraft('locked')}>seal & send</button>
                 </>
               )}
-              {editing && (
-                <>
-                  <button className="btn btn-accent" style={{ fontSize: 11, padding: '3px 10px', display: 'flex', alignItems: 'center', gap: 6 }} onClick={saveEdit}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: editAutoSaved ? '#7ecba1' : '#c4874a', transition: 'background 0.6s', flexShrink: 0 }} />
-                    save
-                  </button>
-                  <button className="btn btn-ghost" style={{ fontSize: 11, padding: '3px 10px' }} onClick={() => setEditing(false)}>cancel</button>
-                </>
-              )}
-              {isAuthor && !editing && (
+              {isAuthor && (
                 <button
                   className="icon-btn"
                   style={{ color: 'var(--text-muted)' }}
-                  onClick={() => { setEditing(true); setEditTitle(letter.title); setEditBody(letter.body) }}
+                  onClick={onOpenEdit}
                   title="edit"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -363,103 +245,22 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
             </div>
             </div>
 
-            {/* Body with span click handlers */}
-              <div style={{ position: 'relative', overflow: 'visible' }}>
-                {editing ? (
-                  <>
-                    <div
-                      onDragOver={e => { e.preventDefault(); setDragging(true) }}
-                      onDragLeave={() => setDragging(false)}
-                      onDrop={async e => {
-                        e.preventDefault()
-                        setDragging(false)
-                        const file = e.dataTransfer.files[0]
-                        if (file) uploadEditFile(file)
-                      }}
-                      style={{
-                        borderRadius: 'var(--radius-sm)',
-                        outline: dragging ? '2px dashed var(--accent-a)' : '2px solid transparent',
-                        transition: 'outline 0.15s',
-                      }}
-                    >
-                      <input
-                        className="compose-title-inp"
-                        value={editTitle}
-                        onChange={e => setEditTitle(e.target.value)}
-                        style={{ marginBottom: 14 }}
-                      />
-                      <textarea
-                        ref={editTaRef}
-                        className="compose-body-ta"
-                        value={editBody}
-                        onChange={e => setEditBody(e.target.value)}
-                        style={{ minHeight: 300, overflow: 'hidden' }}
-                        onInput={autoResize}
-                      />
-                      {dragging && <p style={{ fontSize: 11, color: 'var(--accent-a)', marginTop: 6 }}>drop to insert image</p>}
-                    </div>
-                    <div style={{ display: 'flex', gap: 6, paddingTop: 8, borderTop: '0.5px solid var(--border)', marginTop: 4 }}>
-                      <button
-                        className="btn btn-ghost"
-                        onClick={() => editFileInputRef.current?.click()}
-                        style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '5px 12px' }}
-                      >
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-                        </svg>
-                        attach
-                      </button>
-                      <button
-                        className="btn btn-ghost"
-                        onClick={recording ? stopEditRecording : startEditRecording}
-                        style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '5px 12px', color: recording ? '#f87171' : undefined, borderColor: recording ? 'rgba(248,113,113,0.4)' : undefined }}
-                      >
-                        {recording ? (
-                          <>
-                            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f87171', animation: 'pulse 1s infinite' }} />
-                            stop
-                          </>
-                        ) : (
-                          <>
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                              <line x1="12" y1="19" x2="12" y2="23"/>
-                              <line x1="8" y1="23" x2="16" y2="23"/>
-                            </svg>
-                            record
-                          </>
-                        )}
-                      </button>
-                      {editUploading && <span style={{ fontSize: 10, color: 'var(--text-muted)', alignSelf: 'center' }}>uploading…</span>}
-                      {recording && <span style={{ fontSize: 10, color: '#f87171', alignSelf: 'center', letterSpacing: '0.05em' }}>recording…</span>}
-                    </div>
-                    <input
-                      ref={editFileInputRef}
-                      type="file"
-                      accept="image/*,audio/*"
-                      style={{ display: 'none' }}
-                      onChange={e => { const f = e.target.files[0]; if (f) uploadEditFile(f); e.target.value = '' }}
-                    />
-                  </>
-                ) : (
-                  <>
-                    <div
-                      ref={bodyRef}
-                      className="letter-body"
-                      onMouseUp={handleMouseUp}
-                      dangerouslySetInnerHTML={{ __html: buildBody() }}
-                      onClick={e => {
-                        const id = e.target.dataset?.span
-                        if (id) focusSpan(id)
-                      }}
-                    />
-                    <div ref={tipRef} className="sel-tip">
-                      <button onClick={startComment}>+ comment</button>
-                    </div>
-                  </>
-                )}
+            {/* Body */}
+            <div style={{ position: 'relative', overflow: 'visible' }}>
+              <div
+                ref={bodyRef}
+                className="letter-body"
+                onMouseUp={handleMouseUp}
+                dangerouslySetInnerHTML={{ __html: buildBody() }}
+                onClick={e => {
+                  const id = e.target.dataset?.span
+                  if (id) focusSpan(id)
+                }}
+              />
+              <div ref={tipRef} className="sel-tip">
+                <button onClick={startComment}>+ comment</button>
               </div>
+            </div>
 
             </div>
           </div>
@@ -469,43 +270,41 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
             <span className="margin-col-label">comments</span>
 
             {/* Letter reactions */}
-            {!editing && (
-              <div style={{ marginBottom: '1.2rem', paddingBottom: '1rem', borderBottom: '0.5px solid var(--border)', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {['❤️', '✨', '😢', '😂', '🔥', '👀'].map(emoji => {
-                  const users = letter.reactions?.[emoji] || []
-                  const reacted = users.includes(currentUser.id)
-                  return (
-                    <button
-                      key={emoji}
-                      onClick={() => onReactToLetter(emoji, letter.reactions || {})}
-                      style={{
-                        background: reacted ? 'rgba(167,139,250,0.15)' : 'rgba(255,255,255,0.04)',
-                        border: `0.5px solid ${reacted ? 'rgba(167,139,250,0.4)' : 'rgba(255,255,255,0.08)'}`,
-                        borderRadius: 'var(--radius-pill)',
-                        padding: '4px 10px',
-                        cursor: 'pointer',
-                        fontSize: 14,
-                        color: 'var(--text-primary)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 5,
-                        transition: 'background 0.15s, border-color 0.15s',
-                      }}
-                    >
-                      {emoji}
-                      {users.length > 0 && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{users.length}</span>}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
+            <div style={{ marginBottom: '1.2rem', paddingBottom: '1rem', borderBottom: '0.5px solid var(--border)', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {['❤️', '✨', '😢', '😂', '🔥', '👀'].map(emoji => {
+                const users = letter.reactions?.[emoji] || []
+                const reacted = users.includes(currentUser.id)
+                return (
+                  <button
+                    key={emoji}
+                    onClick={() => onReactToLetter(emoji, letter.reactions || {})}
+                    style={{
+                      background: reacted ? 'rgba(167,139,250,0.15)' : 'rgba(255,255,255,0.04)',
+                      border: `0.5px solid ${reacted ? 'rgba(167,139,250,0.4)' : 'rgba(255,255,255,0.08)'}`,
+                      borderRadius: 'var(--radius-pill)',
+                      padding: '4px 10px',
+                      cursor: 'pointer',
+                      fontSize: 14,
+                      color: 'var(--text-primary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      transition: 'background 0.15s, border-color 0.15s',
+                    }}
+                  >
+                    {emoji}
+                    {users.length > 0 && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{users.length}</span>}
+                  </button>
+                )
+              })}
+            </div>
 
             {spans.length === 0 && !pendingSpan && (
             <div style={{ textAlign: 'center', paddingTop: '0.5rem' }}>
               <p style={{ fontSize: 12, color: 'var(--text-faint)', fontStyle: 'italic', marginBottom: 6 }}>
                 {commentsLoading ? 'loading…' : 'no comments yet'}
               </p>
-              {!editing && !commentsLoading && (
+              {!commentsLoading && (
                 <p style={{ fontSize: 10, color: 'var(--text-faint)', letterSpacing: '0.06em' }}>
                   select text to leave a comment
                 </p>
@@ -515,142 +314,14 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
 
           {spans.map(sp => (
             <div key={sp.id} id={'mg-' + sp.id} style={{ marginBottom: 10 }}>
-              {sp.comments.map((c, i) => (
-                <div
-                  key={i}
-                  className="cmt-bubble"
-                  style={{ cursor: 'pointer', position: 'relative', paddingBottom: 14 }}
-                  onClick={() => !editingComment && focusSpan(sp.id)}
-                  onMouseEnter={() => setHoveredComment(c.id)}
-                  onMouseLeave={() => setHoveredComment(null)}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <div className={`who who-${c.author_label?.toLowerCase()}`}>{c.author_label}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text-faint)' }}>{formatDate(c.created_at)}</div>
-                  </div>
-
-                  {editingComment === c.id ? (
-                    <div onClick={e => e.stopPropagation()}>
-                      <textarea
-                        ref={editCommentTaRef}
-                        className="cmt-input"
-                        value={editCommentText}
-                        autoFocus
-                        onInput={autoResize}
-                        style={{ resize: 'vertical', lineHeight: 1.5, width: '100%' }}
-                        onChange={e => setEditCommentText(e.target.value)}
-                      />
-                      <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-                        <button className="btn btn-accent" style={{ fontSize: 11, padding: '3px 8px' }}
-                          onClick={() => { onEditComment(c.id, editCommentText); setEditingComment(null) }}>save</button>
-                        <button className="btn btn-ghost" style={{ fontSize: 11, padding: '3px 8px' }}
-                          onClick={() => setEditingComment(null)}>cancel</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="body" style={{ whiteSpace: 'pre-wrap' }}>{c.body}</div>
-                  )}
-
-                  {/* Reactions */}
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 8, minHeight: 28, alignItems: 'center' }}>
-                      {Object.entries(c.reactions || {}).map(([emoji, users]) => (
-                        users.length > 0 && (
-                          <button
-                            key={emoji}
-                            onClick={e => { e.stopPropagation(); onReactToComment(c.id, emoji, c.reactions) }}
-                            style={{
-                              background: users.includes(currentUser.id) ? 'rgba(167,139,250,0.15)' : 'rgba(255,255,255,0.05)',
-                              border: `0.5px solid ${users.includes(currentUser.id) ? 'rgba(167,139,250,0.4)' : 'rgba(255,255,255,0.1)'}`,
-                              borderRadius: 'var(--radius-pill)',
-                              padding: '2px 8px',
-                              cursor: 'pointer',
-                              fontSize: 13,
-                              color: 'var(--text-primary)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 4,
-                            }}
-                          >
-                            {emoji} <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{users.length}</span>
-                          </button>
-                        )
-                      ))}
-                      <div style={{ position: 'relative', opacity: hoveredComment === c.id && editingComment !== c.id ? 1 : 0, transition: 'opacity 0.15s' }}>
-                        <button
-                          style={{
-                            background: 'none',
-                            border: '0.5px solid rgba(255,255,255,0.1)',
-                            borderRadius: 'var(--radius-pill)',
-                            padding: '2px 8px',
-                            cursor: 'pointer',
-                            fontSize: 13,
-                            color: 'var(--text-muted)',
-                          }}
-                          onClick={e => {
-                            e.stopPropagation()
-                            setEmojiPickerFor(emojiPickerFor === c.id ? null : c.id)
-                          }}
-                        >+</button>
-                        {emojiPickerFor === c.id && (
-                          <div
-                            onClick={e => e.stopPropagation()}
-                            style={{
-                              position: 'absolute',
-                              top: 28,
-                              left: 0,
-                              background: '#1a1230',
-                              border: '0.5px solid var(--border-hover)',
-                              borderRadius: 'var(--radius-sm)',
-                              padding: '6px 8px',
-                              display: 'flex',
-                              gap: 6,
-                              zIndex: 20,
-                            }}
-                          >
-                            {['❤️', '✨', '😢', '😂', '🔥', '👀'].map(emoji => (
-                              <button
-                                key={emoji}
-                                onClick={e => {
-                                  e.stopPropagation()
-                                  onReactToComment(c.id, emoji, c.reactions)
-                                  setEmojiPickerFor(null)
-                                }}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 2 }}
-                              >
-                                {emoji}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                  {c.author_id === currentUser.id && hoveredComment === c.id && editingComment !== c.id && (
-                    <div style={{ position: 'absolute', bottom: 8, right: 10, display: 'flex', gap: 10 }}>
-                      <button
-                        onClick={e => { e.stopPropagation(); setEditingComment(c.id); setEditCommentText(c.body) }}
-                        onMouseEnter={() => setHoveredEdit(c.id)}
-                        onMouseLeave={() => setHoveredEdit(null)}
-                        style={{
-                          background: 'none', border: 'none', cursor: 'pointer',
-                          fontSize: 11, color: hoveredEdit === c.id ? '#ffffff' : 'var(--text-muted)',
-                          fontFamily: 'var(--font-sans)', padding: 0, transition: 'color 0.15s',
-                        }}
-                      >edit</button>
-                      <button
-                        onClick={e => { e.stopPropagation(); onDeleteComment(c.id) }}
-                        onMouseEnter={() => setHoveredDelete(c.id)}
-                        onMouseLeave={() => setHoveredDelete(null)}
-                        style={{
-                          background: 'none', border: 'none', cursor: 'pointer',
-                          fontSize: 11, color: hoveredDelete === c.id ? '#ffffff' : '#f87171',
-                          fontFamily: 'var(--font-sans)', padding: 0, transition: 'color 0.15s',
-                        }}
-                      >delete</button>
-                    </div>
-                  )}
-                </div>
-              ))}
+              <CommentsList
+                comments={sp.comments}
+                currentUser={currentUser}
+                onEditComment={onEditComment}
+                onDeleteComment={onDeleteComment}
+                onReactToComment={onReactToComment}
+                onFocusSpan={() => focusSpan(sp.id)}
+              />
               <div style={{ display: 'flex', gap: 5, marginTop: 4 }}>
                 <textarea
                   className="cmt-input"

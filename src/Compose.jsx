@@ -1,9 +1,11 @@
 import { useState, useRef, useCallback, memo, useEffect } from 'react'
 import { supabase } from './supabase'
+import CommentsList from './CommentsList'
 
-export default memo(function Compose({ currentUser, partnerName, onSend, onCancel, onAutoSave, onPromoteDraft, onDiscardDraft }) {
-  const [title, setTitle]   = useState('')
-  const [body, setBody]     = useState('')
+export default memo(function Compose({ currentUser, partnerName, onSend, onCancel, onAutoSave, onPromoteDraft, onDiscardDraft, editLetter, comments, onDeleteComment, onEditComment, onReactToComment }) {
+  const isEdit = !!editLetter
+  const [title, setTitle]   = useState(editLetter?.title || '')
+  const [body, setBody]     = useState(editLetter?.body || '')
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [dragging, setDragging] = useState(false)
@@ -23,6 +25,7 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
   useEffect(() => {
     if (!body.trim()) return
     if (saving) return
+    if (isEdit && !draftIdRef.current) return  // ← add this
     setAutoSaved(false)
     clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = setTimeout(async () => {
@@ -32,6 +35,10 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
     }, 500)
     return () => clearTimeout(autoSaveTimer.current)
   }, [body, title, saving])
+
+  useEffect(() => {
+    if (editLetter) draftIdRef.current = editLetter.id
+  }, [])
 
   async function uploadFile(file) {
     const isImage = file.type.startsWith('image/')
@@ -155,7 +162,7 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
     autoSaveTimer.current = null
     if (draftIdRef.current) {
       await onAutoSave(title.trim() || '(untitled)', body.trim(), draftIdRef.current)
-      await onPromoteDraft(draftIdRef.current, status)
+      await onPromoteDraft(draftIdRef.current, status, isEdit)
     } else {
       await onSend(title.trim() || '(untitled)', body.trim(), status)
     }
@@ -163,40 +170,44 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
   }
 
   return (
-    <div>
-      <button className="btn btn-ghost" onClick={onCancel} style={{ marginBottom: '1.1rem' }}>← back</button>
+  <div>
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: '1.1rem' }}>
+      <button className="btn btn-ghost" onClick={onCancel}>← back</button>
+    </div>
 
-      <div className="card" style={{ marginBottom: '1rem' }}>
-        <p style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 12 }}>
-          to {partnerName}
-        </p>
-        <input
-          className="compose-title-inp"
-          placeholder="Subject"
-          value={title}
-          onChange={e => setTitle(e.target.value)}
-        />
-        <div
-          onDragOver={e => { e.preventDefault(); setDragging(true) }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={handleDrop}
-          style={{
-            borderRadius: 'var(--radius-sm)',
-            outline: dragging ? '2px dashed var(--accent-a)' : '2px solid transparent',
-            transition: 'outline 0.15s',
-          }}
-        >
-          <textarea
-            ref={taRef}
-            className="compose-body-ta"
-            placeholder={`Dear ${partnerName},`}
-            value={body}
-            onChange={e => setBody(e.target.value)}
-            onPaste={handlePaste}
-            onInput={autoResize}
+    <div style={{ display: 'flex', gap: 32, alignItems: 'flex-start' }} className="letter-view-layout">
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="card" style={{ marginBottom: '1rem' }}>
+          <p style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: 12 }}>
+            {isEdit ? 'editing' : `to ${partnerName}`}
+          </p>
+          <input
+            className="compose-title-inp"
+            placeholder="Subject"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
           />
-        </div>
-        <div style={{ display: 'flex', gap: 6, paddingTop: 8, borderTop: '0.5px solid var(--border)', marginTop: 4 }}>
+          <div
+            onDragOver={e => { e.preventDefault(); setDragging(true) }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={handleDrop}
+            style={{
+              borderRadius: 'var(--radius-sm)',
+              outline: dragging ? '2px dashed var(--accent-a)' : '2px solid transparent',
+              transition: 'outline 0.15s',
+            }}
+          >
+            <textarea
+              ref={taRef}
+              className="compose-body-ta"
+              placeholder={`Dear ${partnerName},`}
+              value={body}
+              onChange={e => setBody(e.target.value)}
+              onPaste={handlePaste}
+              onInput={autoResize}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 6, paddingTop: 8, borderTop: '0.5px solid var(--border)', marginTop: 4 }}>
             <button
               className="btn btn-ghost"
               onClick={() => fileInputRef.current?.click()}
@@ -239,43 +250,86 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
             </button>
             {uploading && <span style={{ fontSize: 10, color: 'var(--text-muted)', alignSelf: 'center' }}>uploading…</span>}
           </div>
-        {dragging && <p style={{ fontSize: 11, color: 'var(--accent-a)', marginTop: 6 }}>drop to insert file</p>}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*,audio/*"
-          style={{ display: 'none' }}
-          onChange={e => { const f = e.target.files[0]; if (f) uploadFile(f); e.target.value = '' }}
-        />
+          {dragging && <p style={{ fontSize: 11, color: 'var(--accent-a)', marginTop: 6 }}>drop to insert file</p>}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,audio/*"
+            style={{ display: 'none' }}
+            onChange={e => { const f = e.target.files[0]; if (f) uploadFile(f); e.target.value = '' }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {isEdit ? (
+            <>
+              {editLetter.status !== 'open' && (
+                <button className="btn btn-open" onClick={() => send('open')} disabled={saving || uploading || !body.trim()}>send open</button>
+              )}
+              {editLetter.status !== 'locked' && (
+                <button className="btn btn-sealed" onClick={() => send('locked')} disabled={saving || uploading || !body.trim()}>seal &amp; send</button>
+              )}
+              <button
+                className="btn btn-accent"
+                onClick={() => send(editLetter.status)}
+                disabled={saving || uploading || !body.trim()}
+                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                <span style={{
+                  width: 6, height: 6, borderRadius: '50%',
+                  background: autoSaved ? '#7ecba1' : '#c4874a',
+                  transition: 'background 0.6s', flexShrink: 0,
+                }} />
+                save
+              </button>
+              <span style={{ fontSize: 10, color: 'var(--text-faint)', letterSpacing: '0.08em' }}>autosaves</span>
+              <button className="btn btn-ghost" onClick={onCancel} style={{ marginLeft: 'auto' }}>cancel</button>
+            </>
+          ) : (
+            <>
+              <button className="btn btn-open" onClick={() => send('open')} disabled={saving || uploading || !body.trim()}>send open</button>
+              <button className="btn btn-sealed" onClick={() => send('locked')} disabled={saving || uploading || !body.trim()}>seal &amp; send</button>
+              <button
+                className="btn btn-ghost"
+                onClick={() => send('draft')}
+                disabled={saving || !body.trim()}
+                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                <span style={{
+                  width: 6, height: 6, borderRadius: '50%',
+                  background: autoSaved ? '#7ecba1' : '#c4874a',
+                  transition: 'background 0.6s', flexShrink: 0,
+                }} />
+                save draft
+              </button>
+              <span style={{ fontSize: 10, color: 'var(--text-faint)', letterSpacing: '0.08em' }}>autosaves</span>
+              <button
+                className="btn btn-ghost"
+                onClick={async () => {
+                  clearTimeout(autoSaveTimer.current)
+                  if (draftIdRef.current) await onDiscardDraft(draftIdRef.current)
+                  onCancel()
+                }}
+                style={{ marginLeft: 'auto' }}
+              >cancel</button>
+            </>
+          )}
+        </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <button className="btn btn-open" onClick={() => send('open')} disabled={saving || uploading || !body.trim()}>send open</button>
-        <button className="btn btn-sealed" onClick={() => send('locked')} disabled={saving || uploading || !body.trim()}>seal &amp; send</button>
-        <button
-          className="btn btn-ghost"
-          onClick={() => send('draft')}
-          disabled={saving || !body.trim()}
-          style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-        >
-          <span style={{
-            width: 6, height: 6, borderRadius: '50%',
-            background: autoSaved ? '#7ecba1' : '#c4874a',
-            transition: 'background 0.6s', flexShrink: 0,
-          }} />
-          save draft
-        </button>
-        <span style={{ fontSize: 10, color: 'var(--text-faint)', letterSpacing: '0.08em' }}>autosaves</span>
-        <button
-          className="btn btn-ghost"
-          onClick={async () => {
-            clearTimeout(autoSaveTimer.current)
-            if (draftIdRef.current) await onDiscardDraft(draftIdRef.current)
-            onCancel()
-          }}
-          style={{ marginLeft: 'auto' }}
-        >cancel</button>
-      </div>
+      {isEdit && comments?.length > 0 && (
+        <div className="margin-col">
+          <span className="margin-col-label">comments</span>
+          <CommentsList
+            comments={comments}
+            currentUser={currentUser}
+            onEditComment={onEditComment}
+            onDeleteComment={onDeleteComment}
+            onReactToComment={onReactToComment}
+          />
+        </div>
+      )}
     </div>
-  )
+  </div>
+)
 })

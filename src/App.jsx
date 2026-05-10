@@ -45,13 +45,17 @@ export default function App() {
   // History
 
   useEffect(() => {
-  function handlePopState() {
-    setScreen('list')
-    setActiveLetter(null)
-  }
-  window.addEventListener('popstate', handlePopState)
-  return () => window.removeEventListener('popstate', handlePopState)
-}, [])
+    function handlePopState() {
+      if (screen === 'compose' && activeLetter) {
+        setScreen('letter')
+      } else {
+        setScreen('list')
+        setActiveLetter(null)
+      }
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [screen, activeLetter])
 
   // ── Fetch letters when logged in ─────────────────────────────
   useEffect(() => {
@@ -168,10 +172,8 @@ export default function App() {
     setActiveLetter(null)
   }
 
-  async function editLetter(title, body) {
-    await supabase.from('letters').update({ title, body }).eq('id', activeLetter.id)
-    setActiveLetter(l => ({ ...l, title, body }))
-    fetchLetters()
+  function openEdit() {
+    setScreen('compose')
   }
 
   async function addComment({ spanText, body }) {
@@ -245,19 +247,29 @@ export default function App() {
     }
   }
 
-  async function promoteDraft(draftId, status) {
+  async function promoteDraft(draftId, status, isEdit) {
+    const letter = letters.find(l => l.id === draftId)
     await supabase.from('letters').update({
       status,
-      to_user: status === 'draft' ? session.user.id : getPartnerId()
+      to_user: status === 'draft'
+        ? session.user.id
+        : isEdit ? letter?.to_user ?? getPartnerId() : getPartnerId()
     }).eq('id', draftId)
     fetchLetters()
-    setScreen('list')
+    if (isEdit) {
+      const { data } = await supabase.from('letters').select('*, comments(count)').eq('id', draftId).single()
+      if (data) setActiveLetter({ ...data, from_label: USER_LABELS[data.from_user] || '?', comment_count: data.comments?.[0]?.count ?? 0 })
+      setScreen('letter')
+    } else {
+      setScreen('list')
+      setActiveLetter(null)
+    }
   }
 
   async function discardDraft(draftId) {
-  await supabase.from('letters').delete().eq('id', draftId)
-  fetchLetters()
-}
+    await supabase.from('letters').delete().eq('id', draftId)
+    fetchLetters()
+  }
 
 async function reactToLetter(emoji, currentReactions) {
   const userId = session.user.id
@@ -333,7 +345,7 @@ async function reactToLetter(emoji, currentReactions) {
             onUnseal={unsealLetter}
             onAddComment={addComment}
             onDelete={deleteLetter}
-            onEdit={editLetter}
+            onOpenEdit={openEdit}
             onDeleteComment={deleteComment}
             onEditComment={editComment}
             onSendDraft={sendDraft}
@@ -348,10 +360,22 @@ async function reactToLetter(emoji, currentReactions) {
             currentUser={currentUser}
             partnerName={partnerLabel}
             onSend={sendLetter}
-            onCancel={() => { history.back() }}
+            onCancel={() => {
+              const isEdit = !!(activeLetter?.from_user === session.user.id)
+              if (isEdit) {
+                setScreen('letter')
+              } else {
+                history.back()
+              }
+            }}
             onAutoSave={autoSaveDraft}
             onPromoteDraft={promoteDraft}
             onDiscardDraft={discardDraft}
+            editLetter={activeLetter?.from_user === session.user.id ? activeLetter : null}
+            comments={isAuthor ? comments : []}
+            onDeleteComment={deleteComment}
+            onEditComment={editComment}
+            onReactToComment={reactToComment}
           />
         )}
       </div>
