@@ -500,6 +500,13 @@ html, body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(167,139,250,0.25); border-radius: 2px; }
 
+/* ── Pulse animation for recording indicator ── */
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
 /* ── Mobile responsiveness ── */
 @media (max-width: 680px) {
   .ui-layer {

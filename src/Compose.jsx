@@ -12,6 +12,9 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
   const autoSaveTimer = useRef(null)
   const draftIdRef = useRef(null)
   const fileInputRef = useRef(null)
+  const [recording, setRecording] = useState(false)
+  const [mediaRecorder, setMediaRecorder] = useState(null)
+  const chunksRef = useRef([])
 
   useEffect(() => {
     if (!body.trim()) return
@@ -46,6 +49,30 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
       : `![](${url})`
     setBody(b => b.slice(0, start) + insertion + b.slice(end))
     setUploading(false)
+  }
+
+  async function startRecording() {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
+    const ext = mimeType === 'audio/webm' ? 'webm' : 'mp4'
+    const mr = new MediaRecorder(stream, { mimeType })
+    chunksRef.current = []
+    mr.ondataavailable = e => chunksRef.current.push(e.data)
+    mr.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop())
+      const blob = new Blob(chunksRef.current, { type: mimeType })
+      const file = new File([blob], `voice-${Date.now()}.${ext}`, { type: mimeType })
+      await uploadFile(file)
+    }
+    mr.start()
+    setMediaRecorder(mr)
+    setRecording(true)
+  }
+
+  function stopRecording() {
+    mediaRecorder?.stop()
+    setMediaRecorder(null)
+    setRecording(false)
   }
 
   function handleDrop(e) {
@@ -156,6 +183,29 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
               <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
             </svg>
             attach
+          </button>
+          <button
+            className="btn btn-ghost"
+            onClick={recording ? stopRecording : startRecording}
+            disabled={uploading}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, color: recording ? '#f87171' : undefined, borderColor: recording ? 'rgba(248,113,113,0.4)' : undefined }}
+          >
+            {recording ? (
+              <>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f87171', animation: 'pulse 1s infinite' }} />
+                stop
+              </>
+            ) : (
+              <>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                  <line x1="12" y1="19" x2="12" y2="23"/>
+                  <line x1="8" y1="23" x2="16" y2="23"/>
+                </svg>
+                record
+              </>
+            )}
           </button>
         <button
           className="btn btn-ghost"
