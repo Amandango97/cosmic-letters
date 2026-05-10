@@ -11,6 +11,7 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
   const taRef = useRef(null)
   const autoSaveTimer = useRef(null)
   const draftIdRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     if (!body.trim()) return
@@ -116,6 +117,13 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
         </div>
         {uploading && <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>uploading image…</p>}
         {dragging && <p style={{ fontSize: 11, color: 'var(--accent-a)', marginTop: 6 }}>drop to insert image</p>}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,audio/*"
+          style={{ display: 'none' }}
+          onChange={e => { const f = e.target.files[0]; if (f) uploadFile(f); e.target.value = '' }}
+        />
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -138,6 +146,17 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
           save draft
         </button>
           <span style={{ fontSize: 10, color: 'var(--text-faint)', letterSpacing: '0.08em' }}>autosaves</span>
+          <button
+            className="btn btn-ghost"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            style={{ display: 'flex', alignItems: 'center', gap: 5 }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+            </svg>
+            attach
+          </button>
         <button
           className="btn btn-ghost"
           onClick={async () => {

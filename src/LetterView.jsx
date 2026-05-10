@@ -33,6 +33,7 @@ export default function LetterView({ letter, comments, currentUser, isAuthor, on
   const [emojiPickerFor, setEmojiPickerFor] = useState(null)
   const editAutoSaveTimer = useRef(null)
   const [editAutoSaved, setEditAutoSaved] = useState(false)
+  const editFileInputRef = useRef(null)
 
   // Re-derive spans when comments change
   useEffect(() => {
@@ -161,6 +162,24 @@ useEffect(() => {
 }
 
   // -- Edit handler -----
+
+  async function uploadEditFile(file) {
+    const isImage = file.type.startsWith('image/')
+    const isAudio = file.type.startsWith('audio/')
+    if (!isImage && !isAudio) return
+    const ext = file.name.split('.').pop()
+    const path = `${currentUser.id}/${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('letter-images').upload(path, file)
+    if (error) return
+    const { data } = supabase.storage.from('letter-images').getPublicUrl(path)
+    const ta = editTaRef.current
+    const start = ta?.selectionStart ?? editBody.length
+    const end = ta?.selectionEnd ?? editBody.length
+    const insertion = isAudio
+      ? `\n<audio controls src="${data.publicUrl}"></audio>\n`
+      : `\n![](${data.publicUrl})\n`
+    setEditBody(b => b.slice(0, start) + insertion + b.slice(end))
+  }
 
   async function saveEdit() {
     clearTimeout(editAutoSaveTimer.current)
@@ -362,6 +381,23 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
                     onInput={autoResize}
                   />
                   {dragging && <p style={{ fontSize: 11, color: 'var(--accent-a)', marginTop: 6 }}>drop to insert image</p>}
+                  <input
+                    ref={editFileInputRef}
+                    type="file"
+                    accept="image/*,audio/*"
+                    style={{ display: 'none' }}
+                    onChange={e => { const f = e.target.files[0]; if (f) uploadEditFile(f); e.target.value = '' }}
+                  />
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() => editFileInputRef.current?.click()}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 8, fontSize: 11 }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                    </svg>
+                    attach image / audio
+                  </button>
                 </div>
               ) : (
                 <>
