@@ -31,11 +31,6 @@ export default function CommentsList({ comments, currentUser, onEditComment, onD
             <div className={`who who-${c.author_label?.toLowerCase()}`}>{c.author_label}</div>
             <div style={{ fontSize: 10, color: 'var(--text-faint)' }}>{formatDate(c.created_at)}</div>
           </div>
-          {c.span_text && (
-            <div style={{ fontSize: 10, color: 'var(--text-faint)', marginTop: 6, fontStyle: 'italic', borderLeft: '2px solid var(--border)', paddingLeft: 6 }}>
-              "{c.span_text}"
-            </div>
-          )}
 
           {editingComment === c.id ? (
             <div onClick={e => e.stopPropagation()}>

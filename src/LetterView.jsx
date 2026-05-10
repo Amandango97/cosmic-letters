@@ -65,15 +65,13 @@ export default function LetterView({ letter, comments, currentUser, isAuthor, on
   })
 
   sorted.forEach(sp => {
-    // Strip tags from current html to find plain-text position
     const plain = html.replace(/<[^>]+>/g, '')
     const idx = plain.indexOf(sp.text)
     if (idx === -1) return
 
-    // Walk the html char by char, counting only non-tag chars
-    let plainCount = 0
-    let startPos = -1
-    let endPos = -1
+    let pCount = 0
+    let htmlStart = -1
+    let htmlEnd = -1
     let inTag = false
 
     for (let i = 0; i < html.length; i++) {
@@ -81,28 +79,9 @@ export default function LetterView({ letter, comments, currentUser, isAuthor, on
       if (html[i] === '>') { inTag = false; continue }
       if (inTag) continue
 
-      if (plainCount === idx) startPos = i
-      if (plainCount === idx + sp.text.length) { endPos = i; break }
-      plainCount++
-    }
-
-    if (startPos === -1 || endPos === -1) return
-
-    // Find the real html positions accounting for tags we skipped
-    // Re-walk to get actual string indices
-    let pCount = 0
-    let htmlStart = -1
-    let htmlEnd = -1
-    let inT = false
-
-    for (let i = 0; i < html.length; i++) {
-      if (html[i] === '<') { inT = true }
-      if (html[i] === '>') { inT = false; continue }
-      if (inT) continue
-
-      if (pCount === idx) htmlStart = i
-      if (pCount === idx + sp.text.length) { htmlEnd = i; break }
+      if (pCount === idx && htmlStart === -1) htmlStart = i
       pCount++
+      if (pCount === idx + sp.text.length && htmlEnd === -1) { htmlEnd = i + 1; break }
     }
 
     if (htmlStart === -1 || htmlEnd === -1) return
