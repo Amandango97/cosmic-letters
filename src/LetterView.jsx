@@ -37,6 +37,7 @@ export default function LetterView({ letter, comments, currentUser, isAuthor, on
   const [recording, setRecording] = useState(false)
   const [mediaRecorder, setMediaRecorder] = useState(null)
   const editChunksRef = useRef([])
+  const [editUploading, setEditUploading] = useState(false)
 
   // Re-derive spans when comments change
   useEffect(() => {
@@ -170,10 +171,11 @@ useEffect(() => {
     const isImage = file.type.startsWith('image/')
     const isAudio = file.type.startsWith('audio/')
     if (!isImage && !isAudio) return
+    setEditUploading(true)
     const ext = file.name.split('.').pop()
     const path = `${currentUser.id}/${Date.now()}.${ext}`
     const { error } = await supabase.storage.from('letter-images').upload(path, file)
-    if (error) return
+    if (error) { setEditUploading(false); return }
     const { data } = supabase.storage.from('letter-images').getPublicUrl(path)
     const ta = editTaRef.current
     const start = ta?.selectionStart ?? editBody.length
@@ -182,6 +184,7 @@ useEffect(() => {
       ? `\n<audio controls src="${data.publicUrl}"></audio>\n`
       : `\n![](${data.publicUrl})\n`
     setEditBody(b => b.slice(0, start) + insertion + b.slice(end))
+    setEditUploading(false)
   }
 
   async function startEditRecording() {
@@ -361,114 +364,105 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
             </div>
 
             {/* Body with span click handlers */}
-            <div style={{ position: 'relative', overflow: 'visible' }}>
-              {editing ? (
-                <div
-                  onDragOver={e => { e.preventDefault(); setDragging(true) }}
-                  onDragLeave={() => setDragging(false)}
-                  onDrop={async e => {
-                    e.preventDefault()
-                    setDragging(false)
-                    const file = e.dataTransfer.files[0]
-                    if (!file) return
-                    const isImage = file.type.startsWith('image/')
-                    const isAudio = file.type.startsWith('audio/')
-                    if (!isImage && !isAudio) return
-                    const ext = file.name.split('.').pop()
-                    const path = `${currentUser.id}/${Date.now()}.${ext}`
-                    const { error } = await supabase.storage.from('letter-images').upload(path, file)
-                    if (error) return
-                    const { data } = supabase.storage.from('letter-images').getPublicUrl(path)
-                    const ta = editTaRef.current
-                    const start = ta.selectionStart
-                    const end = ta.selectionEnd
-                    const insertion = isAudio
-                      ? `\n<audio controls src="${data.publicUrl}"></audio>\n`
-                      : `\n![](${data.publicUrl})\n`
-                    setEditBody(b => b.slice(0, start) + insertion + b.slice(end))
-                  }}
-                  style={{
-                    borderRadius: 'var(--radius-sm)',
-                    outline: dragging ? '2px dashed var(--accent-a)' : '2px solid transparent',
-                    transition: 'outline 0.15s',
-                  }}
-                >
-                  <input
-                    className="compose-title-inp"
-                    value={editTitle}
-                    onChange={e => setEditTitle(e.target.value)}
-                    style={{ marginBottom: 14 }}
-                  />
-                  <textarea
-                    ref={editTaRef}
-                    className="compose-body-ta"
-                    value={editBody}
-                    onChange={e => setEditBody(e.target.value)}
-                    style={{ minHeight: 300, overflow: 'hidden' }}
-                    onInput={autoResize}
-                  />
-                  {dragging && <p style={{ fontSize: 11, color: 'var(--accent-a)', marginTop: 6 }}>drop to insert image</p>}
-                  <input
-                    ref={editFileInputRef}
-                    type="file"
-                    accept="image/*,audio/*"
-                    style={{ display: 'none' }}
-                    onChange={e => { const f = e.target.files[0]; if (f) uploadEditFile(f); e.target.value = '' }}
-                  />
-                  <button
-                    className="btn btn-ghost"
-                    onClick={() => editFileInputRef.current?.click()}
-                    style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 8, fontSize: 11 }}
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-                    </svg>
-                    attach image / audio
-                  </button>
-                  <button
-                    className="btn btn-ghost"
-                    onClick={recording ? stopEditRecording : startEditRecording}
-                    style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 8, fontSize: 11, color: recording ? '#f87171' : undefined, borderColor: recording ? 'rgba(248,113,113,0.4)' : undefined }}
-                  >
-                    {recording ? (
-                      <>
-                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f87171', animation: 'pulse 1s infinite' }} />
-                        stop recording
-                      </>
-                    ) : (
-                      <>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                          <line x1="12" y1="19" x2="12" y2="23"/>
-                          <line x1="8" y1="23" x2="16" y2="23"/>
+              <div style={{ position: 'relative', overflow: 'visible' }}>
+                {editing ? (
+                  <>
+                    <div
+                      onDragOver={e => { e.preventDefault(); setDragging(true) }}
+                      onDragLeave={() => setDragging(false)}
+                      onDrop={async e => {
+                        e.preventDefault()
+                        setDragging(false)
+                        const file = e.dataTransfer.files[0]
+                        if (file) uploadEditFile(file)
+                      }}
+                      style={{
+                        borderRadius: 'var(--radius-sm)',
+                        outline: dragging ? '2px dashed var(--accent-a)' : '2px solid transparent',
+                        transition: 'outline 0.15s',
+                      }}
+                    >
+                      <input
+                        className="compose-title-inp"
+                        value={editTitle}
+                        onChange={e => setEditTitle(e.target.value)}
+                        style={{ marginBottom: 14 }}
+                      />
+                      <textarea
+                        ref={editTaRef}
+                        className="compose-body-ta"
+                        value={editBody}
+                        onChange={e => setEditBody(e.target.value)}
+                        style={{ minHeight: 300, overflow: 'hidden' }}
+                        onInput={autoResize}
+                      />
+                      {dragging && <p style={{ fontSize: 11, color: 'var(--accent-a)', marginTop: 6 }}>drop to insert image</p>}
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, paddingTop: 8, borderTop: '0.5px solid var(--border)', marginTop: 4 }}>
+                      <button
+                        className="btn btn-ghost"
+                        onClick={() => editFileInputRef.current?.click()}
+                        style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '5px 12px' }}
+                      >
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
                         </svg>
-                        record voice
-                      </>
-                    )}
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div
-                    ref={bodyRef}
-                    className="letter-body"
-                    onMouseUp={handleMouseUp}
-                    dangerouslySetInnerHTML={{ __html: buildBody() }}
-                    onClick={e => {
-                      const id = e.target.dataset?.span
-                      if (id) focusSpan(id)
-                    }}
-                  />
-                  <div ref={tipRef} className="sel-tip">
-                    <button onClick={startComment}>+ comment</button>
-                  </div>
-                </>
-              )}
-            </div>
+                        attach
+                      </button>
+                      <button
+                        className="btn btn-ghost"
+                        onClick={recording ? stopEditRecording : startEditRecording}
+                        style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '5px 12px', color: recording ? '#f87171' : undefined, borderColor: recording ? 'rgba(248,113,113,0.4)' : undefined }}
+                      >
+                        {recording ? (
+                          <>
+                            <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f87171', animation: 'pulse 1s infinite' }} />
+                            stop
+                          </>
+                        ) : (
+                          <>
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                              <line x1="12" y1="19" x2="12" y2="23"/>
+                              <line x1="8" y1="23" x2="16" y2="23"/>
+                            </svg>
+                            record
+                          </>
+                        )}
+                      </button>
+                      {editUploading && <span style={{ fontSize: 10, color: 'var(--text-muted)', alignSelf: 'center' }}>uploading…</span>}
+                      {recording && <span style={{ fontSize: 10, color: '#f87171', alignSelf: 'center', letterSpacing: '0.05em' }}>recording…</span>}
+                    </div>
+                    <input
+                      ref={editFileInputRef}
+                      type="file"
+                      accept="image/*,audio/*"
+                      style={{ display: 'none' }}
+                      onChange={e => { const f = e.target.files[0]; if (f) uploadEditFile(f); e.target.value = '' }}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <div
+                      ref={bodyRef}
+                      className="letter-body"
+                      onMouseUp={handleMouseUp}
+                      dangerouslySetInnerHTML={{ __html: buildBody() }}
+                      onClick={e => {
+                        const id = e.target.dataset?.span
+                        if (id) focusSpan(id)
+                      }}
+                    />
+                    <div ref={tipRef} className="sel-tip">
+                      <button onClick={startComment}>+ comment</button>
+                    </div>
+                  </>
+                )}
+              </div>
 
+            </div>
           </div>
-        </div>
 
         {/* Margin */}
         <div className="margin-col">

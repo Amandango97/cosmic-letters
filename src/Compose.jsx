@@ -18,6 +18,7 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
 
   useEffect(() => {
     if (!body.trim()) return
+    if (saving) return
     setAutoSaved(false)
     clearTimeout(autoSaveTimer.current)
     autoSaveTimer.current = setTimeout(async () => {
@@ -26,7 +27,7 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
       setAutoSaved(true)
     }, 500)
     return () => clearTimeout(autoSaveTimer.current)
-  }, [body, title])
+  }, [body, title, saving])
 
   async function uploadFile(file) {
     const isImage = file.type.startsWith('image/')
@@ -99,6 +100,7 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
     if (!body.trim()) return
     setSaving(true)
     clearTimeout(autoSaveTimer.current)
+    autoSaveTimer.current = null
     if (draftIdRef.current) {
       await onAutoSave(title.trim() || '(untitled)', body.trim(), draftIdRef.current)
       await onPromoteDraft(draftIdRef.current, status)
@@ -142,8 +144,45 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
             onInput={autoResize}
           />
         </div>
-        {uploading && <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>uploading image…</p>}
-        {dragging && <p style={{ fontSize: 11, color: 'var(--accent-a)', marginTop: 6 }}>drop to insert image</p>}
+        <div style={{ display: 'flex', gap: 6, paddingTop: 8, borderTop: '0.5px solid var(--border)', marginTop: 4 }}>
+            <button
+              className="btn btn-ghost"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '5px 12px' }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+              </svg>
+              attach
+            </button>
+            <button
+              className="btn btn-ghost"
+              onClick={recording ? stopRecording : startRecording}
+              disabled={uploading}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '5px 12px', color: recording ? '#f87171' : undefined, borderColor: recording ? 'rgba(248,113,113,0.4)' : undefined }}
+            >
+              {recording ? (
+                <>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f87171', animation: 'pulse 1s infinite' }} />
+                  stop
+                </>
+              ) : (
+                <>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    <line x1="12" y1="19" x2="12" y2="23"/>
+                    <line x1="8" y1="23" x2="16" y2="23"/>
+                  </svg>
+                  record
+                </>
+              )}
+            </button>
+            {uploading && <span style={{ fontSize: 10, color: 'var(--text-muted)', alignSelf: 'center' }}>uploading…</span>}
+            {recording && <span style={{ fontSize: 10, color: '#f87171', alignSelf: 'center', letterSpacing: '0.05em' }}>recording…</span>}
+          </div>
+        {dragging && <p style={{ fontSize: 11, color: 'var(--accent-a)', marginTop: 6 }}>drop to insert file</p>}
         <input
           ref={fileInputRef}
           type="file"
@@ -153,8 +192,8 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
         />
       </div>
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <button className="btn btn-open"   onClick={() => send('open')}   disabled={saving || uploading || !body.trim()}>send open</button>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <button className="btn btn-open" onClick={() => send('open')} disabled={saving || uploading || !body.trim()}>send open</button>
         <button className="btn btn-sealed" onClick={() => send('locked')} disabled={saving || uploading || !body.trim()}>seal &amp; send</button>
         <button
           className="btn btn-ghost"
@@ -163,57 +202,18 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
           style={{ display: 'flex', alignItems: 'center', gap: 6 }}
         >
           <span style={{
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
+            width: 6, height: 6, borderRadius: '50%',
             background: autoSaved ? '#7ecba1' : '#c4874a',
-            transition: 'background 0.6s',
-            flexShrink: 0,
+            transition: 'background 0.6s', flexShrink: 0,
           }} />
           save draft
         </button>
-          <span style={{ fontSize: 10, color: 'var(--text-faint)', letterSpacing: '0.08em' }}>autosaves</span>
-          <button
-            className="btn btn-ghost"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            style={{ display: 'flex', alignItems: 'center', gap: 5 }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-            </svg>
-            attach
-          </button>
-          <button
-            className="btn btn-ghost"
-            onClick={recording ? stopRecording : startRecording}
-            disabled={uploading}
-            style={{ display: 'flex', alignItems: 'center', gap: 5, color: recording ? '#f87171' : undefined, borderColor: recording ? 'rgba(248,113,113,0.4)' : undefined }}
-          >
-            {recording ? (
-              <>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f87171', animation: 'pulse 1s infinite' }} />
-                stop
-              </>
-            ) : (
-              <>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                  <line x1="12" y1="19" x2="12" y2="23"/>
-                  <line x1="8" y1="23" x2="16" y2="23"/>
-                </svg>
-                record
-              </>
-            )}
-          </button>
+        <span style={{ fontSize: 10, color: 'var(--text-faint)', letterSpacing: '0.08em' }}>autosaves</span>
         <button
           className="btn btn-ghost"
           onClick={async () => {
             clearTimeout(autoSaveTimer.current)
-            if (draftIdRef.current) {
-              await onDiscardDraft(draftIdRef.current)
-            }
+            if (draftIdRef.current) await onDiscardDraft(draftIdRef.current)
             onCancel()
           }}
           style={{ marginLeft: 'auto' }}
