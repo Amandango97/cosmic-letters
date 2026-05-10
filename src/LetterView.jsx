@@ -139,7 +139,7 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
   async function saveReply(spanId, spanText) {
     const txt = (replyText[spanId] || '').trim()
     if (!txt) return
-    await onAddComment({ spanText, body: txt })
+    await onAddComment({ spanText: spanText || null, body: txt })
     setReplyText(r => ({ ...r, [spanId]: '' }))
   }
 
@@ -245,99 +245,91 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
           </div>
 
         {/* Margin */}
-        <div className="margin-col">
+          <div className="margin-col">
             <span className="margin-col-label">comments</span>
 
-            {/* Letter reactions */}
-            <div style={{ marginBottom: '1.2rem', paddingBottom: '1rem', borderBottom: '0.5px solid var(--border)', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {['❤️', '✨', '😢', '😂', '🔥', '👀'].map(emoji => {
-                const users = letter.reactions?.[emoji] || []
-                const reacted = users.includes(currentUser.id)
-                return (
-                  <button
-                    key={emoji}
-                    onClick={() => onReactToLetter(emoji, letter.reactions || {})}
-                    style={{
-                      background: reacted ? 'rgba(167,139,250,0.15)' : 'rgba(255,255,255,0.04)',
-                      border: `0.5px solid ${reacted ? 'rgba(167,139,250,0.4)' : 'rgba(255,255,255,0.08)'}`,
-                      borderRadius: 'var(--radius-pill)',
-                      padding: '4px 10px',
-                      cursor: 'pointer',
-                      fontSize: 14,
-                      color: 'var(--text-primary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 5,
-                      transition: 'background 0.15s, border-color 0.15s',
-                    }}
-                  >
-                    {emoji}
-                    {users.length > 0 && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{users.length}</span>}
-                  </button>
-                )
-              })}
-            </div>
-
-            {spans.length === 0 && !pendingSpan && (
-            <div style={{ textAlign: 'center', paddingTop: '0.5rem' }}>
-              <p style={{ fontSize: 12, color: 'var(--text-faint)', fontStyle: 'italic', marginBottom: 6 }}>
-                {commentsLoading ? 'loading…' : 'no comments yet'}
-              </p>
-              {!commentsLoading && (
-                <p style={{ fontSize: 10, color: 'var(--text-faint)', letterSpacing: '0.06em' }}>
-                  select text to leave a comment
-                </p>
-              )}
-            </div>
-          )}
-
-          {spans.map(sp => (
-            <div key={sp.id} id={'mg-' + sp.id} style={{ marginBottom: 10 }}>
-              <CommentsList
-                comments={sp.comments}
-                currentUser={currentUser}
-                onEditComment={onEditComment}
-                onDeleteComment={onDeleteComment}
-                onReactToComment={onReactToComment}
-                onFocusSpan={() => focusSpan(sp.id)}
-              />
-              <div style={{ display: 'flex', gap: 5, marginTop: 4 }}>
+            <CommentsList
+              comments={comments.filter(c => !c.span_text)}
+              currentUser={currentUser}
+              onEditComment={onEditComment}
+              onDeleteComment={onDeleteComment}
+              onReactToComment={onReactToComment}
+              onAddComment={onAddComment}
+              letterReactions={letter.reactions}
+              onReactToLetter={onReactToLetter}
+            />
+            {comments.filter(c => !c.span_text).length > 0 && (
+              <div style={{ display: 'flex', gap: 5, marginTop: 4, marginBottom: 12 }}>
                 <textarea
                   className="cmt-input"
                   style={{ flex: 1, resize: 'none', overflow: 'hidden', lineHeight: 1.5 }}
                   placeholder="Reply"
-                  value={replyText[sp.id] || ''}
+                  value={replyText['general'] || ''}
                   rows={1}
-                  onChange={e => setReplyText(r => ({ ...r, [sp.id]: e.target.value }))}
+                  onChange={e => setReplyText(r => ({ ...r, general: e.target.value }))}
                   onInput={autoResize}
                 />
-                <button className="btn btn-accent" style={{ padding: '3px 8px', fontSize: 11, alignSelf: 'flex-end' }} onClick={() => saveReply(sp.id, sp.text)}>↩</button>
+                <button
+                  className="btn btn-accent"
+                  style={{ padding: '3px 8px', fontSize: 11, alignSelf: 'flex-end' }}
+                  onClick={() => saveReply('general', null)}
+                >↩</button>
               </div>
-            </div>
-          ))}
-          
+            )}
 
-          {pendingSpan && (
-            <div className="new-cmt-box">
-              <p style={{ fontSize: 10, color: 'var(--sealed-text)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>
-                new comment · {currentUser.label}
-              </p>
-              <textarea
-                className="cmt-input"
-                autoFocus
-                placeholder="write a comment…"
-                value={newCmtText}
-                onInput={autoResize}
-                style={{ resize: 'vertical', lineHeight: 1.5, overflow: 'hidden' }}
-                onChange={e => setNewCmtText(e.target.value)}
-              />
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button className="btn btn-accent" style={{ fontSize: 11, padding: '4px 10px' }} onClick={saveNewComment}>save</button>
-                <button className="btn btn-ghost"  style={{ fontSize: 11, padding: '4px 10px' }} onClick={cancelPending}>cancel</button>
+            {spans.length === 0 && !pendingSpan && comments.filter(c => !c.span_text).length === 0 && !commentsLoading && (
+              <div style={{ textAlign: 'center', paddingTop: '0.5rem' }}>
+                <p style={{ fontSize: 12, color: 'var(--text-faint)', fontStyle: 'italic', marginBottom: 6 }}>no comments yet</p>
+                <p style={{ fontSize: 10, color: 'var(--text-faint)', letterSpacing: '0.06em' }}>select text to leave a comment</p>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+
+            {spans.map(sp => (
+              <div key={sp.id} id={'mg-' + sp.id} style={{ marginBottom: 10 }}>
+                <CommentsList
+                  comments={sp.comments}
+                  currentUser={currentUser}
+                  onEditComment={onEditComment}
+                  onDeleteComment={onDeleteComment}
+                  onReactToComment={onReactToComment}
+                  onFocusSpan={() => focusSpan(sp.id)}
+                />
+                <div style={{ display: 'flex', gap: 5, marginTop: 4 }}>
+                  <textarea
+                    className="cmt-input"
+                    style={{ flex: 1, resize: 'none', overflow: 'hidden', lineHeight: 1.5 }}
+                    placeholder="Reply"
+                    value={replyText[sp.id] || ''}
+                    rows={1}
+                    onChange={e => setReplyText(r => ({ ...r, [sp.id]: e.target.value }))}
+                    onInput={autoResize}
+                  />
+                  <button className="btn btn-accent" style={{ padding: '3px 8px', fontSize: 11, alignSelf: 'flex-end' }} onClick={() => saveReply(sp.id, sp.text)}>↩</button>
+                </div>
+              </div>
+            ))}
+
+            {pendingSpan && (
+              <div className="new-cmt-box">
+                <p style={{ fontSize: 10, color: 'var(--sealed-text)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 6 }}>
+                  new comment · {currentUser.label}
+                </p>
+                <textarea
+                  className="cmt-input"
+                  autoFocus
+                  placeholder="write a comment…"
+                  value={newCmtText}
+                  onInput={autoResize}
+                  style={{ resize: 'vertical', lineHeight: 1.5, overflow: 'hidden' }}
+                  onChange={e => setNewCmtText(e.target.value)}
+                />
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button className="btn btn-accent" style={{ fontSize: 11, padding: '4px 10px' }} onClick={saveNewComment}>save</button>
+                  <button className="btn btn-ghost" style={{ fontSize: 11, padding: '4px 10px' }} onClick={cancelPending}>cancel</button>
+                </div>
+              </div>
+            )}
+          </div>
       </div>
     </div>
   )
@@ -349,6 +341,7 @@ function buildSpansFromComments(comments, letterBody) {
   const map = {}
   ;(comments || []).forEach(c => {
     const key = c.span_text
+    if (!key) return  // skip general comments
     if (!map[key]) map[key] = { id: 'span-' + Math.abs(key.split('').reduce((a, c) => (a << 5) - a + c.charCodeAt(0), 0)).toString(36), text: key, comments: [] }
     map[key].comments.push(c)
   })

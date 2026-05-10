@@ -182,7 +182,7 @@ export default function App() {
       letter_id:    activeLetter.id,
       author_id:    session.user.id,
       author_label: USER_LABELS[session.user.id],
-      span_text:    spanText,
+      span_text:    spanText || null,
       body,
     })
     if (error) { console.error(error); return }
