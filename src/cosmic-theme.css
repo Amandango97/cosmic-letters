@@ -100,6 +100,8 @@ body {
   border: 0.5px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 3rem 4rem;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 /* ── Buttons ── */
@@ -411,10 +413,20 @@ html, body {
 
 .letter-body audio {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   margin: 1rem 0;
   display: block;
   border-radius: var(--radius-md);
   accent-color: var(--accent-a);
+  box-sizing: border-box;
+  color-scheme: dark;
+}
+
+/* Prevent audio from blowing out the card width */
+.letter-body {
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 /* ---Buttons ---*/
@@ -597,6 +609,13 @@ html, body {
     padding-top: 16px;
     border-top: 0.5px solid var(--border);
   }
+}
+
+/* --- Audio on mobile --- */
+
+.letter-body audio {
+  width: calc(100vw - 4rem);
+  max-width: 100%;
 }
 
 @media (min-width: 681px) {
