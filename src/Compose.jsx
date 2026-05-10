@@ -15,6 +15,10 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
   const [recording, setRecording] = useState(false)
   const [mediaRecorder, setMediaRecorder] = useState(null)
   const chunksRef = useRef([])
+  const analyserRef = useRef(null)
+  const animFrameRef = useRef(null)
+  const [waveform, setWaveform] = useState([])
+  const waveCanvasRef = useRef(null)
 
   useEffect(() => {
     if (!body.trim()) return
@@ -57,14 +61,62 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
     const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
     const ext = mimeType === 'audio/webm' ? 'webm' : 'mp4'
     const mr = new MediaRecorder(stream, { mimeType })
+
+    // Waveform analyser
+    const audioCtx = new AudioContext()
+    const source = audioCtx.createMediaStreamSource(stream)
+    const analyser = audioCtx.createAnalyser()
+    analyser.fftSize = 64
+    source.connect(analyser)
+    analyserRef.current = analyser
+
+    let x = 0
+    let ctx = null
+
+    const tick = () => {
+      // grab ctx lazily — canvas is now rendered since recording=true
+      if (!ctx && waveCanvasRef.current) {
+        ctx = waveCanvasRef.current.getContext('2d')
+      }
+
+      const data = new Uint8Array(analyser.frequencyBinCount)
+      analyser.getByteFrequencyData(data)
+      const avg = data.reduce((a, b) => a + b, 0) / data.length
+
+      if (ctx && waveCanvasRef.current) {
+        const canvas = waveCanvasRef.current
+        const h = canvas.height
+        const barH = Math.max(2, (avg / 255) * h)
+        ctx.fillStyle = '#f87171'
+        ctx.fillRect(x, (h - barH) / 2, 2, barH)
+        x += 3
+        if (x >= canvas.width) {
+          const imageData = ctx.getImageData(3, 0, canvas.width - 3, canvas.height)
+          ctx.clearRect(0, 0, canvas.width, canvas.height)
+          ctx.putImageData(imageData, 0, 0)
+          x = canvas.width - 3
+        }
+      }
+
+      animFrameRef.current = requestAnimationFrame(tick)
+    }
+    tick()
+
     chunksRef.current = []
     mr.ondataavailable = e => chunksRef.current.push(e.data)
     mr.onstop = async () => {
-      stream.getTracks().forEach(t => t.stop())
-      const blob = new Blob(chunksRef.current, { type: mimeType })
-      const file = new File([blob], `voice-${Date.now()}.${ext}`, { type: mimeType })
-      await uploadFile(file)
-    }
+        if (waveCanvasRef.current) {
+          const c = waveCanvasRef.current.getContext('2d')
+          c.clearRect(0, 0, waveCanvasRef.current.width, waveCanvasRef.current.height)
+        }
+        stream.getTracks().forEach(t => t.stop())
+        cancelAnimationFrame(animFrameRef.current)
+        audioCtx.close()
+        setWaveform([])
+        const blob = new Blob(chunksRef.current, { type: mimeType })
+        const file = new File([blob], `voice-${Date.now()}.${ext}`, { type: mimeType })
+        await uploadFile(file)
+      }
     mr.start()
     setMediaRecorder(mr)
     setRecording(true)
@@ -164,7 +216,13 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
             >
               {recording ? (
                 <>
-                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f87171', animation: 'pulse 1s infinite' }} />
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f87171', animation: 'pulse 1s infinite', flexShrink: 0 }} />
+                  <canvas
+                    ref={waveCanvasRef}
+                    width={120}
+                    height={20}
+                    style={{ borderRadius: 2, background: 'rgba(248,113,113,0.1)', display: 'block' }}
+                  />
                   stop
                 </>
               ) : (
@@ -180,7 +238,6 @@ export default memo(function Compose({ currentUser, partnerName, onSend, onCance
               )}
             </button>
             {uploading && <span style={{ fontSize: 10, color: 'var(--text-muted)', alignSelf: 'center' }}>uploading…</span>}
-            {recording && <span style={{ fontSize: 10, color: '#f87171', alignSelf: 'center', letterSpacing: '0.05em' }}>recording…</span>}
           </div>
         {dragging && <p style={{ fontSize: 11, color: 'var(--accent-a)', marginTop: 6 }}>drop to insert file</p>}
         <input
