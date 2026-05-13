@@ -52,11 +52,12 @@ export default function LetterList({ letters, currentUser, partnerName, onOpen, 
         </>
       )}
 
-      {(view === 'sent' || !unread.length
-          ? items
-          : rest
-        ).map(l => <Row key={l.id} letter={l} onOpen={onOpen} />)
-      }
+      {groupByDate(view === 'sent' || !unread.length ? items : rest).map(({ label, items: group }) => (
+        <div key={label}>
+          <p className="sec-label" style={{ marginTop: 32, marginBottom: 6 }}>{label}</p>
+          {group.map(l => <Row key={l.id} letter={l} onOpen={onOpen} />)}
+        </div>
+      ))}
     </div>
   )
 }
@@ -100,4 +101,28 @@ function formatDate(iso) {
   if (diff < 86400000 && d.getDate() === now.getDate()) return 'today ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
   if (diff < 172800000) return 'yesterday ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+}
+
+function groupByDate(items) {
+  const groups = []
+  const now = new Date()
+  const labels = []
+
+  items.forEach(l => {
+    const d = new Date(l.created_at)
+    const diff = now - d
+    let label
+    if (d.getDate() === now.getDate() && diff < 86400000) label = 'today'
+    else if (diff < 172800000) label = 'yesterday'
+    else if (diff < 604800000) label = 'this week'
+    else {
+      label = d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+    }
+
+    const existing = groups.find(g => g.label === label)
+    if (existing) existing.items.push(l)
+    else groups.push({ label, items: [l] })
+  })
+
+  return groups
 }
