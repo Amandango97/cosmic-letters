@@ -3,9 +3,12 @@
 
 export default function LetterList({ letters, currentUser, partnerName, onOpen, onCompose, onLogout, view, onViewChange, loading }) {
 
-  const inbox = letters.filter(l => l.to_user === currentUser.id && l.status !== 'draft')
-  const sent  = letters.filter(l => l.from_user === currentUser.id)
-  const items = view === 'inbox' ? inbox : sent
+  console.log(letters)
+
+  const inbox  = letters.filter(l => l.to_user === currentUser.id && l.status !== 'draft')
+  const sent   = letters.filter(l => l.from_user === currentUser.id && l.status !== 'draft')
+  const drafts = letters.filter(l => l.from_user === currentUser.id && l.status === 'draft')
+  const items  = view === 'inbox' ? inbox : view === 'drafts' ? drafts : sent
 
   const unread = items.filter(l => !l.read_at && l.status !== 'locked')
   const rest   = items.filter(l =>  l.read_at || l.status === 'locked')
@@ -26,6 +29,9 @@ export default function LetterList({ letters, currentUser, partnerName, onOpen, 
         </button>
         <button className={view === 'sent' ? 'on' : ''} onClick={() => onViewChange('sent')}>
           from me
+        </button>
+        <button className={view === 'drafts' ? 'on' : ''} onClick={() => onViewChange('drafts')}>
+          my drafts
         </button>
       </div>
 
@@ -52,7 +58,7 @@ export default function LetterList({ letters, currentUser, partnerName, onOpen, 
         </>
       )}
 
-      {groupByDate(view === 'sent' || !unread.length ? items : rest).map(({ label, items: group }) => (
+      {groupByDate(view === 'drafts' || view === 'sent' || !unread.length ? items : rest).map(({ label, items: group }) => (
         <div key={label}>
           <p className="sec-label" style={{ marginTop: 32, marginBottom: 6 }}>{label}</p>
           {group.map(l => <Row key={l.id} letter={l} onOpen={onOpen} />)}
