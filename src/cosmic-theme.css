@@ -96,6 +96,8 @@ body {
 
 /* ── Surface card ── */
 .card {
+  min-width: 0;
+  overflow-x: hidden;
   background: var(--surface);
   border: 0.5px solid var(--border);
   border-radius: var(--radius-lg);
@@ -411,10 +413,20 @@ html, body {
 
 .letter-body audio {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   margin: 1rem 0;
   display: block;
   border-radius: var(--radius-md);
   accent-color: var(--accent-a);
+  box-sizing: border-box;
+  color-scheme: dark;
+}
+
+/* Prevent audio from blowing out the card width */
+.letter-body {
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 /* ---Buttons ---*/
@@ -512,6 +524,13 @@ html, body {
   .ui-layer {
     padding: 1.25rem 1rem;
   }
+
+  /* --- Audio on mobile --- */
+
+.letter-body audio {
+  width: calc(100vw - 4rem);
+  max-width: 100%;
+}
 
   .card {
     padding: 1.25rem 1rem;
