@@ -198,30 +198,37 @@ useEffect(() => {
   }
 
   // ── Selection handler ────────────────────────────────────────
-  function handleMouseUp() {
+  function showTip() {
     const sel = window.getSelection()
-    console.log('mouseup fired')
-    console.log('selection:', sel?.toString())
-    console.log('tipRef:', tipRef.current)
-    
-    if (!sel || sel.isCollapsed || !sel.toString().trim()) {
+    if (!sel || sel.isCollapsed || !sel.toString().trim() || !bodyRef.current || !tipRef.current) {
+      if (tipRef.current) tipRef.current.style.display = 'none'
+      return
+    }
+    // Make sure selection is inside the letter body
+    if (!bodyRef.current.contains(sel.anchorNode)) {
       tipRef.current.style.display = 'none'
       return
     }
     const range = sel.getRangeAt(0)
     const rect  = range.getBoundingClientRect()
     const wr    = bodyRef.current.getBoundingClientRect()
-    
-    console.log('rect:', rect)
-    console.log('wr:', wr)
-    console.log('left:', Math.max(0, rect.left - wr.left + rect.width / 2 - 45))
-    console.log('top:', rect.top - wr.top - 36)
-    
     const rawTop = rect.top - wr.top - 36
-tipRef.current.style.display = 'block'
-tipRef.current.style.left    = Math.max(0, rect.left - wr.left + rect.width / 2 - 45) + 'px'
-tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
+    tipRef.current.style.display = 'block'
+    tipRef.current.style.left    = Math.max(0, rect.left - wr.left + rect.width / 2 - 45) + 'px'
+    tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
   }
+
+  function handleMouseUp() { showTip() }
+
+  useEffect(() => {
+    // selectionchange fires reliably on mobile after the user lifts their finger
+    function handleSelectionChange() {
+      // Small delay so the selection is settled before we read it
+      setTimeout(showTip, 50)
+    }
+    document.addEventListener('selectionchange', handleSelectionChange)
+    return () => document.removeEventListener('selectionchange', handleSelectionChange)
+  }, [])
 
   function startComment() {
     const sel  = window.getSelection()
