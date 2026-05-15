@@ -477,10 +477,17 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
                     </button>
                   )
                 })}
+                {!editing && (
+                  <button
+                    className="btn btn-ghost"
+                    style={{ fontSize: 11, padding: '4px 12px' }}
+                    onClick={() => setReplyText(r => ({ ...r, general: '' }))}
+                  >+ comment</button>
+                )}
               </div>
             )}
 
-            {spans.length === 0 && !pendingSpan && comments.filter(c => !c.span_text).length === 0 && (
+            {spans.length === 0 && !pendingSpan && comments.filter(c => !c.span_text).length === 0 && replyText['general'] === undefined && (
             <div style={{ textAlign: 'center', paddingTop: '0.5rem' }}>
               <p style={{ fontSize: 12, color: 'var(--text-faint)', fontStyle: 'italic', marginBottom: 6 }}>
                 {commentsLoading ? 'loading…' : 'no comments yet'}
@@ -490,13 +497,40 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
                   select text to leave a comment
                 </p>
               )}
-            </div>
-          )}
+          </div>
+        )}
 
         {/* General comments */}
-        {comments.filter(c => !c.span_text).length > 0 && (
-          <div style={{ marginBottom: 10 }}>
-            {comments.filter(c => !c.span_text).map((c, i) => (
+        <div style={{ marginBottom: 10 }}>
+          {/* New comment input — shown when + comment clicked */}
+          {replyText['general'] !== undefined && (
+            <div style={{ display: 'flex', gap: 5, marginBottom: 10 }}>
+              <textarea
+                className="cmt-input"
+                autoFocus
+                style={{ flex: 1, resize: 'none', overflow: 'hidden', lineHeight: 1.5 }}
+                placeholder="Leave a comment…"
+                value={replyText['general'] || ''}
+                rows={1}
+                onChange={e => setReplyText(r => ({ ...r, general: e.target.value }))}
+                onInput={autoResize}
+              />
+              <button
+                className="btn btn-accent"
+                style={{ padding: '3px 8px', fontSize: 11, alignSelf: 'flex-end' }}
+                onClick={async () => {
+                  await saveReply('general', null)
+                  setReplyText(r => { const n = {...r}; delete n['general']; return n })
+                }}
+              >↩</button>
+              <button
+                className="btn btn-ghost"
+                style={{ padding: '3px 8px', fontSize: 11, alignSelf: 'flex-end' }}
+                onClick={() => setReplyText(r => { const n = {...r}; delete n['general']; return n })}
+              >✕</button>
+            </div>
+          )}
+          {comments.filter(c => !c.span_text).map((c, i) => (
               <div
                 key={i}
                 className="cmt-bubble"
@@ -580,24 +614,28 @@ tipRef.current.style.top     = Math.max(0, rawTop) + 'px'
                 )}
               </div>
             ))}
-            <div style={{ display: 'flex', gap: 5, marginTop: 4 }}>
-              <textarea
-                className="cmt-input"
-                style={{ flex: 1, resize: 'none', overflow: 'hidden', lineHeight: 1.5 }}
-                placeholder="Reply"
-                value={replyText['general'] || ''}
-                rows={1}
-                onChange={e => setReplyText(r => ({ ...r, general: e.target.value }))}
-                onInput={autoResize}
-              />
-              <button
-                className="btn btn-accent"
-                style={{ padding: '3px 8px', fontSize: 11, alignSelf: 'flex-end' }}
-                onClick={() => saveReply('general', null)}
-              >↩</button>
-            </div>
+            {comments.filter(c => !c.span_text).length > 0 && (
+              <div style={{ display: 'flex', gap: 5, marginTop: 4 }}>
+                <textarea
+                  className="cmt-input"
+                  style={{ flex: 1, resize: 'none', overflow: 'hidden', lineHeight: 1.5 }}
+                  placeholder="Reply…"
+                  value={replyText['generalReply'] || ''}
+                  rows={1}
+                  onChange={e => setReplyText(r => ({ ...r, generalReply: e.target.value }))}
+                  onInput={autoResize}
+                />
+                <button
+                  className="btn btn-accent"
+                  style={{ padding: '3px 8px', fontSize: 11, alignSelf: 'flex-end' }}
+                  onClick={async () => {
+                    await saveReply('generalReply', null)
+                    setReplyText(r => ({ ...r, generalReply: '' }))
+                  }}
+                >↩</button>
+              </div>
+            )}
           </div>
-        )}
 
           {/* Span comments */}
           {spans.map(sp => (
